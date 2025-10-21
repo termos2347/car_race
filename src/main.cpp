@@ -1,41 +1,47 @@
-// САМОЛЕТ (приемник) - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ
+// САМОЛЕТ (приемник) - С DEBUG РЕЖИМОМ
 #include <esp_now.h>
 #include <WiFi.h>
 #include "Core/Types.h"
 #include "Actuators/ServoManager.h"
 #include "Communication/ESPNowManager.h"
 
+// === НАСТРОЙКИ DEBUG ===
+#define DEBUG_MODE true  // true - отладка, false - полет (минимальный вывод)
+// =======================
+
 ServoManager servoManager;
 
 // MAC адрес пульта (передатчика)
 const uint8_t transmitterMac[] = {0xEC, 0xE3, 0x34, 0x19, 0x23, 0xD4};
 
-// Глобальные переменные для оптимизации
-static ControlData lastReceivedData;
+// Глобальные переменные
+static ControlData currentData;
 static bool newDataReceived = false;
 static unsigned long lastDataTime = 0;
 
 // Тайминги (в мс)
 enum Timing {
-  DATA_RECEIVE_TIMEOUT = 1000,    // Таймаут потери связи
-  SERIAL_PRINT_INTERVAL = 5000,   // Вывод в Serial
+  DATA_PROCESS_INTERVAL = 30,     // Обработка данных
+  STATUS_PRINT_INTERVAL = 1000,   // Вывод статуса
   LED_BLINK_INTERVAL = 2000,      // Мигание LED в режиме ожидания
-  LED_INDICATION_TIME = 25        // Короткая индикация при получении данных
+  LED_INDICATION_TIME = 25        // Индикация LED
 };
 
 // Переменные для неблокирующих таймеров
-static unsigned long lastSerialPrint = 0;
+static unsigned long lastDataProcess = 0;
+static unsigned long lastStatusPrint = 0;
 static unsigned long lastBlinkTime = 0;
 static unsigned long ledOffTime = 0;
 static bool ledState = false;
 static bool connectionStatus = false;
 
-// Прототипы функций (ИСПРАВЛЕНО - добавлены параметры)
+// Прототипы функций
 bool addPeer(const uint8_t* macAddress);
-void optimizedDeviceInfo();
-void handleDataProcessing();
+void printDeviceInfo();
+void setupIndication();
+void handleDataProcessing(unsigned long currentMillis);
 void handleLEDIndication(unsigned long currentMillis);
-void handleSerialOutput(unsigned long currentMillis);
+void handleStatusOutput(unsigned long currentMillis);
 void handleConnectionCheck(unsigned long currentMillis);
 
 // Функция для добавления пира в ESP-NOW
@@ -44,67 +50,79 @@ bool addPeer(const uint8_t* macAddress) {
     memcpy(peerInfo.peer_addr, macAddress, 6);
     peerInfo.channel = 0;
     peerInfo.encrypt = false;
-    
-    esp_err_t result = esp_now_add_peer(&peerInfo);
-    return result == ESP_OK;
+    return esp_now_add_peer(&peerInfo) == ESP_OK;
 }
 
-// Оптимизированный вывод информации об устройстве
-void optimizedDeviceInfo() {
-  Serial.println("✈️ Система управления самолетом запущена");
-  Serial.print("MAC: ");
-  Serial.println(WiFi.macAddress());
-  Serial.print("Free RAM: ");
-  Serial.println(ESP.getFreeHeap());
+// Вывод информации об устройстве
+void printDeviceInfo() {
+  #if DEBUG_MODE
+    Serial.println("✈️ Система управления самолетом запущена");
+    Serial.print("MAC: ");
+    Serial.println(WiFi.macAddress());
+    Serial.print("Free RAM: ");
+    Serial.println(ESP.getFreeHeap());
+  #endif
 }
 
-// Обработка полученных данных (без блокирующих задержек)
-void onControlDataReceived(const ControlData& data) {
-    lastReceivedData = data;
+// Индикация готовности
+void setupIndication() {
+  pinMode(2, OUTPUT);
+  for(int i = 0; i < 3; i++) {
+    digitalWrite(2, HIGH);
+    delay(80);
+    digitalWrite(2, LOW);
+    delay(80);
+  }
+}
+
+// Обработка полученных данных
+void onDataReceived(const ControlData& data) {
+    currentData = data;
     newDataReceived = true;
     lastDataTime = millis();
     
-    // Быстрая индикация получения данных
+    // Индикация получения данных
     digitalWrite(2, HIGH);
     ledState = true;
     ledOffTime = millis() + LED_INDICATION_TIME;
     
-    // Минимальный вывод при получении данных (только при изменении)
-    static ControlData lastPrintedData;
-    const int PRINT_DEADZONE = 5;
-    
-    if (abs(data.xAxis1 - lastPrintedData.xAxis1) > PRINT_DEADZONE ||
-        abs(data.yAxis1 - lastPrintedData.yAxis1) > PRINT_DEADZONE) {
-        Serial.printf("📥 Данные: X=%4d, Y=%4d\n", data.xAxis1, data.yAxis1);
-        lastPrintedData = data;
-    }
+    // Вывод данных в одинаковом формате (только в debug режиме)
+    #if DEBUG_MODE
+      static unsigned long lastDataPrint = 0;
+      if (millis() - lastDataPrint > 100) {
+          Serial.printf("J1:%4d,%4d J2:%4d,%4d B1:%d B2:%d CRC:%4d\n", 
+                       data.xAxis1, data.yAxis1, 
+                       data.xAxis2, data.yAxis2,
+                       data.button1, data.button2, data.crc);
+          lastDataPrint = millis();
+      }
+    #endif
 }
 
 void setup() {
-  Serial.begin(115200);
-  delay(800);  // Уменьшенная задержка
+  #if DEBUG_MODE
+    Serial.begin(115200);
+    delay(800);
+    Serial.println("✈️ Запуск системы управления самолетом...");
+  #endif
   
-  Serial.println("✈️ Запуск системы управления самолетом...");
-  
-  // Оптимизированная информация об устройстве
-  optimizedDeviceInfo();
+  printDeviceInfo();
   
   // Настройка LED для индикации
-  pinMode(2, OUTPUT);
-  digitalWrite(2, LOW);
+  setupIndication();
   
   // Инициализация компонентов
   servoManager.begin();
   
   // Настройка WiFi и ESP-NOW
   WiFi.mode(WIFI_STA);
-  
-  // Оптимизация WiFi для снижения энергопотребления
   WiFi.setSleep(true);
   WiFi.setTxPower(WIFI_POWER_19_5dBm);
   
   if (esp_now_init() != ESP_OK) {
-    Serial.println("❌ Ошибка инициализации ESP-NOW");
+    #if DEBUG_MODE
+      Serial.println("❌ Ошибка инициализации ESP-NOW");
+    #endif
     return;
   }
   
@@ -113,48 +131,57 @@ void setup() {
     if (len == sizeof(ControlData)) {
       ControlData data;
       memcpy(&data, incomingData, sizeof(ControlData));
-      onControlDataReceived(data);
+      onDataReceived(data);
     }
   });
   
   // Добавляем пульт как пир
   if (addPeer(transmitterMac)) {
-    Serial.println("✅ Пульт добавлен");
+    #if DEBUG_MODE
+      Serial.println("✅ Пульт добавлен");
+    #endif
     connectionStatus = true;
   } else {
-    Serial.println("❌ Ошибка добавления пульта");
+    #if DEBUG_MODE
+      Serial.println("❌ Ошибка добавления пульта");
+    #endif
     connectionStatus = false;
   }
   
   // Калибровка сервоприводов
-  servoManager.calibrate();
+  #if DEBUG_MODE
+    servoManager.calibrate();
+  #else
+    // В режиме полета - быстрая калибровка без вывода
+    for(int i = 0; i < 8; i++) {
+      servoManager.servos[i].servo.writeMicroseconds(1500);
+    }
+    delay(100);
+  #endif
   
-  // Индикация готовности (укороченная)
-  for(int i = 0; i < 3; i++) {
-    digitalWrite(2, HIGH);
-    delay(80);
-    digitalWrite(2, LOW);
-    delay(80);
-  }
-  
-  Serial.println("🚀 Самолет готов к работе");
+  #if DEBUG_MODE
+    Serial.println("🚀 Самолет готов к работе");
+  #endif
 }
 
 void loop() {
   const unsigned long currentMillis = millis();
-
+  
   // Разделение задач по времени для равномерной нагрузки
-  handleDataProcessing();
+  handleDataProcessing(currentMillis);
   handleLEDIndication(currentMillis);
-  handleSerialOutput(currentMillis);
+  handleStatusOutput(currentMillis);
   handleConnectionCheck(currentMillis);
 }
 
 // Обработка полученных данных
-void handleDataProcessing() {
-  if (newDataReceived) {
-    servoManager.update(lastReceivedData);
-    newDataReceived = false;
+void handleDataProcessing(unsigned long currentMillis) {
+  if (currentMillis - lastDataProcess >= DATA_PROCESS_INTERVAL) {
+    if (newDataReceived) {
+      servoManager.update(currentData);
+      newDataReceived = false;
+    }
+    lastDataProcess = currentMillis;
   }
 }
 
@@ -166,8 +193,8 @@ void handleLEDIndication(unsigned long currentMillis) {
     ledState = false;
   }
   
-  // Медленное мигание в режиме ожидания (если нет данных более 1 секунды)
-  if (!ledState && currentMillis - lastDataTime > DATA_RECEIVE_TIMEOUT) {
+  // Медленное мигание в режиме ожидания
+  if (!ledState && currentMillis - lastDataTime > 1000) {
     if (currentMillis - lastBlinkTime > LED_BLINK_INTERVAL) {
       digitalWrite(2, !digitalRead(2));
       lastBlinkTime = currentMillis;
@@ -175,43 +202,44 @@ void handleLEDIndication(unsigned long currentMillis) {
   }
 }
 
-// Управление выводом в Serial
-void handleSerialOutput(unsigned long currentMillis) {
-  if (currentMillis - lastSerialPrint >= SERIAL_PRINT_INTERVAL) {
-    // Проверка соединения и вывод статуса
-    bool peerExists = esp_now_is_peer_exist(transmitterMac);
-    
-    if (peerExists) {
-      if (currentMillis - lastDataTime < DATA_RECEIVE_TIMEOUT) {
-        Serial.println("✅ Связь стабильная, данные поступают");
-      } else {
-        Serial.println("⚠️  Пульт подключен, но данные не поступают");
+// Вывод статуса
+void handleStatusOutput(unsigned long currentMillis) {
+  #if DEBUG_MODE
+    if (currentMillis - lastStatusPrint >= STATUS_PRINT_INTERVAL) {
+      // Выводим статус только если не было данных в течение интервала
+      if (currentMillis - lastDataTime > STATUS_PRINT_INTERVAL - 500) {
+        if (connectionStatus) {
+          if (currentMillis - lastDataTime < 2000) {
+            Serial.println("✅ Связь стабильная, данные поступают");
+          } else {
+            Serial.println("⚠️  Пульт подключен, но данные не поступают");
+          }
+        } else {
+          Serial.println("❌ Пульт не зарегистрирован");
+        }
       }
-    } else {
-      Serial.println("❌ Пульт не зарегистрирован");
+      lastStatusPrint = currentMillis;
     }
-    
-    lastSerialPrint = currentMillis;
-  }
+  #endif
 }
 
 // Проверка соединения
 void handleConnectionCheck(unsigned long currentMillis) {
-  static unsigned long lastConnectionCheck = 0;
-  
-  // Проверяем соединение раз в 10 секунд
-  if (currentMillis - lastConnectionCheck > 10000) {
-    bool currentStatus = esp_now_is_peer_exist(transmitterMac);
+  #if DEBUG_MODE
+    static unsigned long lastConnectionCheck = 0;
     
-    if (currentStatus != connectionStatus) {
-      connectionStatus = currentStatus;
-      if (connectionStatus) {
-        Serial.println("🔗 Пульт подключен");
-      } else {
-        Serial.println("🔌 Пульт отключен");
+    if (currentMillis - lastConnectionCheck > 10000) {
+      bool currentStatus = esp_now_is_peer_exist(transmitterMac);
+      
+      if (currentStatus != connectionStatus) {
+        connectionStatus = currentStatus;
+        if (connectionStatus) {
+          Serial.println("🔗 Пульт подключен");
+        } else {
+          Serial.println("🔌 Пульт отключен");
+        }
       }
+      lastConnectionCheck = currentMillis;
     }
-    
-    lastConnectionCheck = currentMillis;
-  }
+  #endif
 }
