@@ -1,4 +1,4 @@
-// САМОЛЕТ (приемник) - С ВЫВОДОМ MAC-АДРЕСОВ
+// САМОЛЕТ (приемник) - С АВТОТЕСТОМ СЕРВОПРИВОДА
 #include <esp_now.h>
 #include <WiFi.h>
 #include "Core/Types.h"
@@ -20,7 +20,6 @@ enum Timing {
   LED_INDICATION_TIME = 25
 };
 
-// Функция для форматированного вывода MAC-адреса
 void printMacAddress(const uint8_t* mac, const char* label) {
   #if DEBUG_MODE
     Serial.printf("%s: %02X:%02X:%02X:%02X:%02X:%02X\n", 
@@ -52,14 +51,13 @@ void onDataReceived(const ControlData& data) {
     }
     
     if (calculatedCRC == data.crc) {
+      // НЕМЕДЛЕННО обновляем сервопривод и двигатель
       servoManager.update(currentData);
       
       #if DEBUG_MODE
         static unsigned long lastDataPrint = 0;
-        if (millis() - lastDataPrint > 100) {
-          Serial.printf("J1:%4d,%4d J2:%4d,%4d\n", 
-                       data.xAxis1, data.yAxis1, 
-                       data.xAxis2, data.yAxis2);
+        if (millis() - lastDataPrint > 200) {
+          Serial.printf("📡 X1:%4d (серво) | Y1:%4d (двигатель)\n", data.xAxis1, data.yAxis1);
           lastDataPrint = millis();
         }
       #endif
@@ -74,11 +72,11 @@ void setup() {
   #if DEBUG_MODE
     Serial.begin(115200);
     delay(500);
-    Serial.println("✈️ САМОЛЕТ ЗАПУЩЕН");
+    Serial.println("✈️ САМОЛЕТ ЗАПУЩЕН (1 серв + 1 двигатель)");
     Serial.println("========================");
   #endif
   
-  // Вывод MAC-адресов ДО инициализации компонентов
+  // Вывод MAC-адресов
   #if DEBUG_MODE
     Serial.print("MAC самолета:  ");
     Serial.println(WiFi.macAddress());
@@ -87,8 +85,17 @@ void setup() {
   #endif
   
   pinMode(2, OUTPUT);
+  
+  // ИНИЦИАЛИЗАЦИЯ И ТЕСТ СЕРВОПРИВОДА
   servoManager.begin();
   
+  // ЗАПУСК ТЕСТОВОЙ ПОСЛЕДОВАТЕЛЬНОСТИ
+  #if DEBUG_MODE
+    Serial.println("🎯 ЗАПУСК АВТОТЕСТА СЕРВОПРИВОДА...");
+  #endif
+  servoManager.testSequence();
+  
+  // Продолжаем обычную инициализацию
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK) {
     #if DEBUG_MODE
@@ -115,15 +122,12 @@ void setup() {
     #endif
   }
   
-  // Калибровка сервоприводов
-  #if DEBUG_MODE
-    servoManager.calibrate();
-  #else
-    servoManager.quickCalibrate();
-  #endif
+  // Быстрая калибровка
+  servoManager.quickCalibrate();
   
   #if DEBUG_MODE
     Serial.println("🚀 Самолет готов к работе");
+    Serial.println("   X1 - сервопривод, Y1 - двигатель");
     Serial.println("========================");
   #endif
 }
