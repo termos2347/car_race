@@ -1,4 +1,4 @@
-// САМОЛЕТ (приемник) - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// САМОЛЕТ (приемник) - С ВЫВОДОМ MAC-АДРЕСОВ
 #include <esp_now.h>
 #include <WiFi.h>
 #include "Core/Types.h"
@@ -19,6 +19,14 @@ enum Timing {
   LED_BLINK_INTERVAL = 2000,
   LED_INDICATION_TIME = 25
 };
+
+// Функция для форматированного вывода MAC-адреса
+void printMacAddress(const uint8_t* mac, const char* label) {
+  #if DEBUG_MODE
+    Serial.printf("%s: %02X:%02X:%02X:%02X:%02X:%02X\n", 
+                 label, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  #endif
+}
 
 bool addPeer(const uint8_t* macAddress) {
     esp_now_peer_info_t peerInfo = {};
@@ -66,7 +74,16 @@ void setup() {
   #if DEBUG_MODE
     Serial.begin(115200);
     delay(500);
-    Serial.println("✈️ Самолет запущен");
+    Serial.println("✈️ САМОЛЕТ ЗАПУЩЕН");
+    Serial.println("========================");
+  #endif
+  
+  // Вывод MAC-адресов ДО инициализации компонентов
+  #if DEBUG_MODE
+    Serial.print("MAC самолета:  ");
+    Serial.println(WiFi.macAddress());
+    printMacAddress(transmitterMac, "MAC пульта  ");
+    Serial.println("------------------------");
   #endif
   
   pinMode(2, OUTPUT);
@@ -75,7 +92,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK) {
     #if DEBUG_MODE
-      Serial.println("❌ Ошибка ESP-NOW");
+      Serial.println("❌ Ошибка инициализации ESP-NOW");
     #endif
     return;
   }
@@ -88,28 +105,39 @@ void setup() {
     }
   });
   
-  addPeer(transmitterMac);
+  if (addPeer(transmitterMac)) {
+    #if DEBUG_MODE
+      Serial.println("✅ Пульт добавлен в пиры");
+    #endif
+  } else {
+    #if DEBUG_MODE
+      Serial.println("❌ Ошибка добавления пульта");
+    #endif
+  }
   
-  // Исправленная калибровка - используем публичные методы
+  // Калибровка сервоприводов
   #if DEBUG_MODE
     servoManager.calibrate();
   #else
-    servoManager.quickCalibrate();  // Используем новый метод
+    servoManager.quickCalibrate();
   #endif
   
   #if DEBUG_MODE
-    Serial.println("🚀 Самолет готов");
+    Serial.println("🚀 Самолет готов к работе");
+    Serial.println("========================");
   #endif
 }
 
 void loop() {
   unsigned long currentMillis = millis();
   
+  // LED индикация получения данных
   if (ledState && currentMillis > ledOffTime) {
     digitalWrite(2, LOW);
     ledState = false;
   }
   
+  // Мигание при отсутствии данных
   if (!ledState && currentMillis - lastDataTime > 1000) {
     if (currentMillis - lastBlinkTime > LED_BLINK_INTERVAL) {
       digitalWrite(2, !digitalRead(2));
