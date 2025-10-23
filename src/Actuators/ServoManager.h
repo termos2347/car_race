@@ -27,20 +27,26 @@ private:
     static const int MOTOR_DEAD_ZONE = 50;
     static const int MOTOR_MIN_PWM = 80;
     
-    // Границы сервопривода (микросекунды)
-    static const int SERVO_MIN_PULSE = 1000;
-    static const int SERVO_MAX_PULSE = 2000;
+    // Границы сервопривода (микросекунды) - РАСШИРЕННЫЙ ДИАПАЗОН
+    static const int SERVO_MIN_PULSE = 500;
+    static const int SERVO_MAX_PULSE = 2500;
     static const int SERVO_NEUTRAL_PULSE = 1500;
     
     // Границы входных значений
     static const int INPUT_MIN = -512;
     static const int INPUT_MAX = 512;
     
+    // Добавляем переменные для хранения реального диапазона
+    int actualMinPulse = SERVO_MIN_PULSE;
+    int actualMaxPulse = SERVO_MAX_PULSE;
+    int actualNeutralPulse = SERVO_NEUTRAL_PULSE;
+    
     void applyMixer(const ControlData& data, int16_t& servoOutput, int16_t& motorOutput);
     int mapToPulse(int16_t value);
     int mapToMotorPWM(int16_t value);
     bool validatePins();
-    void testDirectPWM();  // Добавляем объявление приватного метода
+    void quickTest();
+    void findServoRange();  // Новый метод для поиска рабочего диапазона
     
     // Для плавного изменения мощности двигателя
     int currentMotorPWM = 0;

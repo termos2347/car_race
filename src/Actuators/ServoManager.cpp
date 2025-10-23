@@ -13,89 +13,99 @@ void ServoManager::begin() {
         return;
     }
     
-    // ТЕСТ СИГНАЛА НА ПИНАХ БЕЗ БИБЛИОТЕКИ
-    #if DEBUG_MODE
-        Serial.println("🎯 Тест прямого управления пинами...");
-    #endif
-    
-    // Тест 1: Прямое управление PWM без библиотеки
-    testDirectPWM();
-    
-    // Тест 2: Инициализация через библиотеку Servo
-    #if DEBUG_MODE
-        Serial.println("🔧 Инициализация через библиотеку Servo...");
-    #endif
-    
-    // Пробуем разные таймеры
-    ESP32PWM::allocateTimer(0);
-    ESP32PWM::allocateTimer(1);
-    
-    elevatorServo.setPeriodHertz(50);
-    
-    // Пробуем разные диапазоны импульсов
-    bool attached = false;
-    int ranges[][2] = {{500, 2500}, {1000, 2000}, {800, 2200}};
-    
-    for(int i = 0; i < 3; i++) {
-        attached = elevatorServo.attach(ELEVATOR_PIN, ranges[i][0], ranges[i][1]);
-        if(attached) {
-            #if DEBUG_MODE
-                Serial.printf("✅ Servo прикреплен с диапазоном %d-%d мкс\n", ranges[i][0], ranges[i][1]);
-            #endif
-            break;
-        } else {
-            #if DEBUG_MODE
-                Serial.printf("❌ Не удалось прикрепить с диапазоном %d-%d мкс\n", ranges[i][0], ranges[i][1]);
-            #endif
-        }
-    }
-    
-    if(!attached) {
-        #if DEBUG_MODE
-            Serial.println("❌ КРИТИЧЕСКАЯ ОШИБКА: Servo не прикреплен!");
-        #endif
-        return;
-    }
-    
-    // Инициализация двигателя
+    // 1. СНАЧАЛА инициализация двигателя (чтобы избежать конфликтов)
     ledcSetup(MOTOR_CHANNEL, MOTOR_FREQ, MOTOR_RESOLUTION);
     ledcAttachPin(MOTOR_PIN, MOTOR_CHANNEL);
     ledcWrite(MOTOR_CHANNEL, 0);
+    
+    // 2. ИНИЦИАЛИЗАЦИЯ SERVO С ПРОСТЫМ ПОДХОДОМ
+    #if DEBUG_MODE
+        Serial.println("🔧 Инициализация сервопривода...");
+    #endif
+    
+    // Простая инициализация без сложных таймеров
+    if (elevatorServo.attach(ELEVATOR_PIN, 500, 2500)) {
+        #if DEBUG_MODE
+            Serial.println("✅ Servo прикреплен с диапазоном 500-2500 мкс");
+        #endif
+    } else {
+        // Пробуем стандартный диапазон
+        if (elevatorServo.attach(ELEVATOR_PIN)) {
+            #if DEBUG_MODE
+                Serial.println("✅ Servo прикреплен со стандартным диапазоном");
+            #endif
+        } else {
+            #if DEBUG_MODE
+                Serial.println("❌ КРИТИЧЕСКАЯ ОШИБКА: Servo не прикреплен!");
+            #endif
+            return;
+        }
+    }
+    
+    // 3. НЕМЕДЛЕННЫЙ тест для проверки работы
+    #if DEBUG_MODE
+        Serial.println("🎯 Немедленный тест сервопривода...");
+    #endif
+    quickTest();
+    
+    // 4. Определение реального рабочего диапазона сервопривода
+    #if DEBUG_MODE
+        Serial.println("🎯 Определение рабочего диапазона сервопривода...");
+    #endif
+    findServoRange();
     
     #if DEBUG_MODE
         Serial.println("✅ ServoManager инициализирован");
     #endif
 }
 
-void ServoManager::testDirectPWM() {
+void ServoManager::findServoRange() {
     #if DEBUG_MODE
-        Serial.println("🔌 Тест прямого PWM на пине сервопривода...");
+        Serial.println("🔍 Поиск рабочего диапазона сервопривода...");
     #endif
     
-    // Настройка PWM вручную
-    ledcSetup(8, 50, 16); // Канал 8, 50Hz, 16 бит
-    ledcAttachPin(ELEVATOR_PIN, 8);
+    // Тестируем широкий диапазон для поиска реальных границ
+    int testPositions[] = {500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 
+                          1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500};
     
-    // Тест ручного PWM (аналогично Servo библиотеке)
-    int positions[] = {500, 1500, 2500, 1500};
-    const char* positionNames[] = {"MIN", "NEUTRAL", "MAX", "NEUTRAL"};
+    #if DEBUG_MODE
+        Serial.println("   Тестируем позиции:");
+    #endif
     
-    for(int i = 0; i < 4; i++) {
-        int pulseWidth = positions[i];
-        // Конвертация микросекунд в duty cycle для 50Hz
-        uint32_t duty = (pulseWidth * 65535) / 20000;
-        
-        ledcWrite(8, duty);
+    for (int i = 0; i < sizeof(testPositions)/sizeof(testPositions[0]); i++) {
+        elevatorServo.writeMicroseconds(testPositions[i]);
         #if DEBUG_MODE
-            Serial.printf("   📍 %s: %d мкс (duty: %d)\n", positionNames[i], pulseWidth, duty);
+            Serial.printf("      📍 %d мкс\n", testPositions[i]);
         #endif
-        delay(2000);
+        delay(300); // Даем время на движение
     }
     
-    // Отключаем ручной PWM
-    ledcDetachPin(ELEVATOR_PIN);
+    // Возвращаем в нейтраль
+    elevatorServo.writeMicroseconds(1500);
+    delay(500);
+    
     #if DEBUG_MODE
-        Serial.println("✅ Тест прямого PWM завершен");
+        Serial.println("✅ Поиск диапазона завершен");
+    #endif
+}
+
+void ServoManager::quickTest() {
+    #if DEBUG_MODE
+        Serial.println("🔧 Быстрый тест сервопривода...");
+    #endif
+    
+    // НЕМЕДЛЕННО проверяем работу в полном диапазоне
+    elevatorServo.writeMicroseconds(500);
+    delay(500);
+    elevatorServo.writeMicroseconds(1500);
+    delay(500);
+    elevatorServo.writeMicroseconds(2500);
+    delay(500);
+    elevatorServo.writeMicroseconds(1500);
+    delay(500);
+    
+    #if DEBUG_MODE
+        Serial.println("✅ Быстрый тест завершен");
     #endif
 }
 
@@ -135,47 +145,74 @@ void ServoManager::testSequence() {
         Serial.println("==========================================");
     #endif
     
-    // Тест 1: Проверка питания - минимальное движение
+    // ТЕСТ 1: НЕМЕДЛЕННАЯ проверка крайних положений
     #if DEBUG_MODE
-        Serial.println("🔋 Тест 1: Проверка питания (медленное движение)");
+        Serial.println("🔋 Тест 1: Немедленная проверка крайних положений");
     #endif
     
-    for (int i = 1500; i >= 1000; i -= 10) {
+    // Сразу проверяем полный диапазон
+    elevatorServo.writeMicroseconds(500);
+    #if DEBUG_MODE
+        Serial.println("   📍 MIN: 500 мкс");
+    #endif
+    delay(2000);
+    
+    elevatorServo.writeMicroseconds(2500);
+    #if DEBUG_MODE
+        Serial.println("   📍 MAX: 2500 мкс");
+    #endif
+    delay(2000);
+    
+    elevatorServo.writeMicroseconds(1500);
+    #if DEBUG_MODE
+        Serial.println("   📍 NEUTRAL: 1500 мкс");
+    #endif
+    delay(1000);
+    
+    // ТЕСТ 2: Быстрое движение по всему диапазону
+    #if DEBUG_MODE
+        Serial.println("⚡ Тест 2: Быстрое движение по диапазону");
+    #endif
+    
+    for (int i = 500; i <= 2500; i += 100) {
         elevatorServo.writeMicroseconds(i);
         #if DEBUG_MODE
             Serial.printf("   📍 Положение: %d мкс\n", i);
         #endif
-        delay(100);
+        delay(200);
     }
-    delay(1000);
     
-    for (int i = 1000; i <= 2000; i += 10) {
+    for (int i = 2500; i >= 500; i -= 100) {
         elevatorServo.writeMicroseconds(i);
         #if DEBUG_MODE
             Serial.printf("   📍 Положение: %d мкс\n", i);
         #endif
-        delay(100);
+        delay(200);
     }
+    
+    // Возврат в нейтраль
+    elevatorServo.writeMicroseconds(1500);
     delay(1000);
     
-    // Тест 2: Резкие движения (проверка мощности)
+    // ТЕСТ 3: Резкие движения
     #if DEBUG_MODE
-        Serial.println("⚡ Тест 2: Резкие движения (проверка мощности)");
+        Serial.println("⚡ Тест 3: Резкие движения");
     #endif
     
-    int testPositions[] = {1000, 1500, 2000, 1500, 1000, 1500};
+    int testPositions[] = {500, 1500, 2500, 1500, 500, 1500};
+    const char* positionNames[] = {"MIN", "NEUTRAL", "MAX", "NEUTRAL", "MIN", "NEUTRAL"};
     
     for(int i = 0; i < 6; i++) {
         elevatorServo.writeMicroseconds(testPositions[i]);
         #if DEBUG_MODE
-            Serial.printf("   🔄 Резкое движение: %d мкс\n", testPositions[i]);
+            Serial.printf("   🔄 %s: %d мкс\n", positionNames[i], testPositions[i]);
         #endif
         delay(1000);
     }
     
-    // Тест 3: Двигатель
+    // ТЕСТ 4: Двигатель
     #if DEBUG_MODE
-        Serial.println("🚀 Тест 3: Двигатель");
+        Serial.println("🚀 Тест 4: Двигатель");
     #endif
     
     for(int pwm = 0; pwm <= 255; pwm += 50) {
@@ -183,11 +220,11 @@ void ServoManager::testSequence() {
         #if DEBUG_MODE
             Serial.printf("   🔧 PWM двигателя: %d/255\n", pwm);
         #endif
-        delay(1000);
+        delay(800);
     }
     ledcWrite(MOTOR_CHANNEL, 0);
     
-    // Возврат в нейтраль
+    // Финальная калибровка
     elevatorServo.writeMicroseconds(1500);
     
     #if DEBUG_MODE
