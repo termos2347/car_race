@@ -1,30 +1,23 @@
-// САМОЛЕТ (приемник) - С АВТОТЕСТОМ СЕРВОПРИВОДА
+// САМОЛЕТ (приемник) - ПРОСТАЯ ВЕРСИЯ ДЛЯ SG90
 #include <esp_now.h>
 #include <WiFi.h>
 #include "Core/Types.h"
 #include "Actuators/ServoManager.h"
-
-#define DEBUG_MODE true
 
 ServoManager servoManager;
 const uint8_t transmitterMac[] = {0xEC, 0xE3, 0x34, 0x19, 0x23, 0xD4};
 
 static ControlData currentData;
 static unsigned long lastDataTime = 0;
-static unsigned long lastBlinkTime = 0;
-static unsigned long ledOffTime = 0;
-static bool ledState = false;
 
-enum Timing {
-  LED_BLINK_INTERVAL = 2000,
-  LED_INDICATION_TIME = 25
-};
-
-void printMacAddress(const uint8_t* mac, const char* label) {
-  #if DEBUG_MODE
-    Serial.printf("%s: %02X:%02X:%02X:%02X:%02X:%02X\n", 
-                 label, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  #endif
+void onDataReceived(const ControlData& data) {
+    currentData = data;
+    lastDataTime = millis();
+    
+    // СРАЗУ обновляем сервопривод
+    servoManager.update(currentData);
+    
+    digitalWrite(2, HIGH);
 }
 
 bool addPeer(const uint8_t* macAddress) {
@@ -35,125 +28,96 @@ bool addPeer(const uint8_t* macAddress) {
     return esp_now_add_peer(&peerInfo) == ESP_OK;
 }
 
-void onDataReceived(const ControlData& data) {
-    currentData = data;
-    lastDataTime = millis();
+void setup() {
+    Serial.begin(115200);
+    delay(1000);
+    Serial.println("✈️ САМОЛЕТ ЗАПУЩЕН (SG90 с прямым управлением)");
+    Serial.println("========================");
     
-    digitalWrite(2, HIGH);
-    ledState = true;
-    ledOffTime = millis() + LED_INDICATION_TIME;
+    pinMode(2, OUTPUT);
+    digitalWrite(2, LOW);
     
-    // Проверка CRC
-    uint16_t calculatedCRC = 0;
-    const uint8_t* bytes = (const uint8_t*)&data;
-    for(size_t i = 0; i < sizeof(ControlData) - sizeof(uint16_t); i++) {
-        calculatedCRC += bytes[i];
+    // Инициализация сервопривода SG90
+    Serial.println("🎯 Инициализация сервопривода SG90...");
+    servoManager.begin();
+    
+    // Инициализация ESP-NOW
+    Serial.println("📡 Инициализация ESP-NOW...");
+    
+    WiFi.mode(WIFI_STA);
+    
+    if (esp_now_init() != ESP_OK) {
+        Serial.println("❌ Ошибка инициализации ESP-NOW");
+        while(1) delay(1000);
     }
     
-    if (calculatedCRC == data.crc) {
-      // НЕМЕДЛЕННО обновляем сервопривод и двигатель
-      servoManager.update(currentData);
-      
-      #if DEBUG_MODE
-        static unsigned long lastDataPrint = 0;
-        if (millis() - lastDataPrint > 200) {
-          Serial.printf("📡 X1:%4d (серво) | Y1:%4d (двигатель)\n", data.xAxis1, data.yAxis1);
-          lastDataPrint = millis();
+    esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *incomingData, int len) {
+        if (len == sizeof(ControlData)) {
+            ControlData data;
+            memcpy(&data, incomingData, sizeof(ControlData));
+            
+            // Простая проверка CRC
+            uint16_t calculatedCRC = 0;
+            const uint8_t* bytes = (const uint8_t*)&data;
+            for(size_t i = 0; i < sizeof(ControlData) - sizeof(uint16_t); i++) {
+                calculatedCRC += bytes[i];
+            }
+            
+            if (calculatedCRC == data.crc) {
+                onDataReceived(data);
+            }
         }
-      #endif
+    });
+    
+    if (addPeer(transmitterMac)) {
+        Serial.println("✅ Пульт добавлен");
     } else {
-      #if DEBUG_MODE
-        Serial.println("❌ Ошибка CRC");
-      #endif
+        Serial.println("❌ Ошибка добавления пульта");
     }
+    
+    Serial.println("🚀 Система готова к работе");
+    Serial.println("   Y1 - сервопривод (-512=0°, 512=180°)");
+    Serial.println("   X1 - двигатель");
+    Serial.println("========================");
+    
+    // ЗАПУСК ДИАГНОСТИЧЕСКОГО ТЕСТА ДЖОЙСТИКА
+    Serial.println("🎮 ДИАГНОСТИКА: Подвигайте джойстик по оси Y...");
 }
 
-void setup() {
-  #if DEBUG_MODE
-    Serial.begin(115200);
-    delay(500);
-    Serial.println("✈️ САМОЛЕТ ЗАПУЩЕН (1 серв + 1 двигатель)");
-    Serial.println("========================");
-  #endif
-  
-  // Вывод MAC-адресов
-  #if DEBUG_MODE
-    Serial.print("MAC самолета:  ");
-    Serial.println(WiFi.macAddress());
-    printMacAddress(transmitterMac, "MAC пульта  ");
-    Serial.println("------------------------");
-  #endif
-  
-  pinMode(2, OUTPUT);
-  
-  // ИНИЦИАЛИЗАЦИЯ И ТЕСТ СЕРВОПРИВОДА
-  #if DEBUG_MODE
-    Serial.println("🎯 ИНИЦИАЛИЗАЦИЯ СЕРВОПРИВОДА...");
-  #endif
-  servoManager.begin();
-  
-  // ЗАПУСК ТЕСТОВОЙ ПОСЛЕДОВАТЕЛЬНОСТИ СРАЗУ ПОСЛЕ ИНИЦИАЛИЗАЦИИ
-  #if DEBUG_MODE
-    Serial.println("🎯 ЗАПУСК АВТОТЕСТА СЕРВОПРИВОДА...");
-    delay(100); // Минимальная задержка для стабилизации
-  #endif
-  servoManager.testSequence();
-  
-  // Продолжаем обычную инициализацию
-  #if DEBUG_MODE
-    Serial.println("📡 ИНИЦИАЛИЗАЦИЯ ESP-NOW...");
-  #endif
-  
-  WiFi.mode(WIFI_STA);
-  if (esp_now_init() != ESP_OK) {
-    #if DEBUG_MODE
-      Serial.println("❌ Ошибка инициализации ESP-NOW");
-    #endif
-    return;
-  }
-  
-  esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *incomingData, int len) {
-    if (len == sizeof(ControlData)) {
-      ControlData data;
-      memcpy(&data, incomingData, sizeof(ControlData));
-      onDataReceived(data);
+// Временная функция для диагностики джойстика
+void debugJoystickValues(const ControlData& data) {
+    static unsigned long lastDebug = 0;
+    static int lastY1 = 0;
+    
+    if (millis() - lastDebug > 200 && abs(data.yAxis1 - lastY1) > 10) {
+        int angle = map(data.yAxis1, -512, 512, 0, 180);
+        Serial.printf("🔍 ДЖОЙСТИК: Y1=%-4d → угол=%-3d°\n", data.yAxis1, angle);
+        lastY1 = data.yAxis1;
+        lastDebug = millis();
     }
-  });
-  
-  if (addPeer(transmitterMac)) {
-    #if DEBUG_MODE
-      Serial.println("✅ Пульт добавлен в пиры");
-    #endif
-  } else {
-    #if DEBUG_MODE
-      Serial.println("❌ Ошибка добавления пульта");
-    #endif
-  }
-  
-  // Быстрая калибровка
-  servoManager.quickCalibrate();
-  
-  #if DEBUG_MODE
-    Serial.println("🚀 Самолет готов к работе");
-    Serial.println("   X1 - сервопривод, Y1 - двигатель");
-    Serial.println("========================");
-  #endif
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
-  
-  // LED индикация получения данных
-  if (ledState && currentMillis > ledOffTime) {
-    digitalWrite(2, LOW);
-    ledState = false;
-  }
-  
-  // Мигание при отсутствии данных
-  if (!ledState && currentMillis - lastDataTime > 1000) {
-    if (currentMillis - lastBlinkTime > LED_BLINK_INTERVAL) {
-      digitalWrite(2, !digitalRead(2));
-      lastBlinkTime = currentMillis;
+    unsigned long currentMillis = millis();
+    
+    // Выключаем LED через 100мс после получения данных
+    if (currentMillis - lastDataTime > 100) {
+        digitalWrite(2, LOW);
     }
-  }
+    
+    // Мигание при отсутствии данных
+    if (currentMillis - lastDataTime > 2000) {
+        static unsigned long lastBlink = 0;
+        if (currentMillis - lastBlink > 500) {
+            digitalWrite(2, !digitalRead(2));
+            lastBlink = currentMillis;
+        }
+    }
+    
+    // Аварийная остановка
+    if (currentMillis - lastDataTime > 3000) {
+        servoManager.emergencyStop();
+    }
+    
+    delay(20);
 }

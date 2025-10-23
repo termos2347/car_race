@@ -13,7 +13,6 @@ public:
 private:
     Servo elevatorServo;
     
-    // Используем пины из центральной конфигурации
     static const uint8_t ELEVATOR_PIN = HardwareConfig::ELEVATOR_PIN;
     static const uint8_t MOTOR_PIN = HardwareConfig::MOTOR_PIN;
     
@@ -21,33 +20,19 @@ private:
     static const int MOTOR_FREQ = 1000;
     static const int MOTOR_RESOLUTION = 8;
     
-    // Параметры для плавного управления
-    static const int MOTOR_RAMP_UP_SPEED = 2;
-    static const int MOTOR_RAMP_DOWN_SPEED = 4;
-    static const int MOTOR_DEAD_ZONE = 50;
-    static const int MOTOR_MIN_PWM = 80;
+    // НАСТРОЙКИ ДЛЯ SG90
+    static const int SG90_MIN_PULSE = 500;
+    static const int SG90_MAX_PULSE = 2500;
     
-    // Границы сервопривода (микросекунды) - РАСШИРЕННЫЙ ДИАПАЗОН
-    static const int SERVO_MIN_PULSE = 500;
-    static const int SERVO_MAX_PULSE = 2500;
-    static const int SERVO_NEUTRAL_PULSE = 1500;
+    // ПАРАМЕТРЫ ДЛЯ ПЛАВНОГО УПРАВЛЕНИЯ
+    static const int JOYSTICK_DEAD_ZONE = 20;  // Мертвая зона джойстика
+    static const int MAX_ANGLE_STEP = 5;       // Максимальное изменение угла за шаг
+    static const int MOTOR_DEAD_ZONE = 50;     // Мертвая зона двигателя
+    static const int MOTOR_MIN_PWM = 80;       // Минимальный PWM для двигателя
     
-    // Границы входных значений
-    static const int INPUT_MIN = -512;
-    static const int INPUT_MAX = 512;
+    // Защита от слишком частых команд
+    static const unsigned long MIN_UPDATE_INTERVAL = 30;
     
-    // Добавляем переменные для хранения реального диапазона
-    int actualMinPulse = SERVO_MIN_PULSE;
-    int actualMaxPulse = SERVO_MAX_PULSE;
-    int actualNeutralPulse = SERVO_NEUTRAL_PULSE;
-    
-    void applyMixer(const ControlData& data, int16_t& servoOutput, int16_t& motorOutput);
-    int mapToPulse(int16_t value);
-    int mapToMotorPWM(int16_t value);
-    bool validatePins();
-    void quickTest();
-    void findServoRange();  // Новый метод для поиска рабочего диапазона
-    
-    // Для плавного изменения мощности двигателя
-    int currentMotorPWM = 0;
+    unsigned long lastUpdateTime = 0;
+    int currentAngle = 90;
 };
