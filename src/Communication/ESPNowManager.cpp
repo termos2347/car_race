@@ -28,6 +28,21 @@ void ESPNowManager::registerCallback(DataReceivedCallback callback) {
     dataCallback = callback;
 }
 
+bool ESPNowManager::addPeer(const uint8_t* macAddress) {
+    esp_now_peer_info_t peerInfo = {};
+    memcpy(peerInfo.peer_addr, macAddress, 6);
+    peerInfo.channel = 0;
+    peerInfo.encrypt = false;
+    
+    if (esp_now_add_peer(&peerInfo) == ESP_OK) {
+        Serial.println("✅ Peer добавлен через ESPNowManager");
+        return true;
+    } else {
+        Serial.println("❌ Ошибка добавления peer через ESPNowManager");
+        return false;
+    }
+}
+
 void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int len) {
     if (len != sizeof(ControlData)) {
         Serial.printf("❌ Неверный размер пакета: %d (ожидалось %d)\n", len, sizeof(ControlData));
@@ -54,10 +69,10 @@ void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int 
         espNowInstance->dataCallback(receivedData);
     }
     
-    // Диагностика (реже, чтобы не засорять консоль)
+    // Редкая диагностика для отладки связи
     static unsigned long lastPrint = 0;
-    if (millis() - lastPrint > 1000) {
-        Serial.printf("📥 Данные получены корректно (CRC: %04X)\n", receivedData.crc);
+    if (millis() - lastPrint > 5000) {
+        Serial.printf("📥 ESP-NOW: связь стабильна (последний CRC: %04X)\n", receivedData.crc);
         lastPrint = millis();
     }
 }

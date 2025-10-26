@@ -1,7 +1,7 @@
 #pragma once
 #include <esp_now.h>
 #include <WiFi.h>
-#include "../Core/Types.h"
+#include "Core/Types.h"
 
 class ESPNowManager {
 public:
@@ -9,6 +9,7 @@ public:
     
     void begin();
     void registerCallback(DataReceivedCallback callback);
+    bool addPeer(const uint8_t* macAddress);
     void sendDiagnostic();
     
     // Singleton instance

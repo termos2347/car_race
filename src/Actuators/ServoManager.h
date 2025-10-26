@@ -1,6 +1,6 @@
 #pragma once
 #include <ESP32Servo.h>
-#include "../Core/Types.h"
+#include "Core/Types.h"
 
 class ServoManager {
 public:

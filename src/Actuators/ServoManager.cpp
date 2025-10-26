@@ -6,7 +6,7 @@ void ServoManager::begin() {
     
     if (elevatorServo.attach(ELEVATOR_PIN, SG90_MIN_PULSE, SG90_MAX_PULSE)) {
         Serial.println("✅ Сервопривод SG90 инициализирован");
-        elevatorServo.write(90); // Нейтральное положение
+        elevatorServo.write(90);
         delay(500);
     } else {
         Serial.println("❌ Ошибка инициализации сервопривода!");
@@ -22,12 +22,9 @@ void ServoManager::begin() {
 
 void ServoManager::update(const ControlData& data) {
     // ПРЯМОЕ ПРЕОБРАЗОВАНИЕ: Джойстик → Сервопривод
-    // Y1: -512 → 0°, 0 → 90°, 512 → 180°
-    
     int angle = map(data.yAxis1, -512, 512, 0, 180);
     angle = constrain(angle, 0, 180);
     
-    // НЕМЕДЛЕННО применяем угол
     elevatorServo.write(angle);
     
     // Двигатель от X1
@@ -37,20 +34,36 @@ void ServoManager::update(const ControlData& data) {
     }
     motorPWM = constrain(motorPWM, 0, 255);
     ledcWrite(MOTOR_CHANNEL, motorPWM);
-    
-    // Диагностика каждого обновления
-    Serial.printf("🎯 Y1:%-4d → угол:%-3d° | X1:%-4d → PWM:%-3d\n", 
-                 data.yAxis1, angle, data.xAxis1, motorPWM);
 }
 
 void ServoManager::quickCalibrate() {
+    Serial.println("🎯 Быстрая калибровка: серво=90°, мотор=0");
     elevatorServo.write(90);
     ledcWrite(MOTOR_CHANNEL, 0);
+    delay(1000);
 }
 
 void ServoManager::emergencyStop() {
-    elevatorServo.write(90);
-    ledcWrite(MOTOR_CHANNEL, 0);
+    static unsigned long lastEmergencyCall = 0;
+    unsigned long currentTime = millis();
+    
+    // Защита от частых вызовов
+    if (currentTime - lastEmergencyCall < 1000) {
+        return;
+    }
+    lastEmergencyCall = currentTime;
+    
+    Serial.println("🛑 АВАРИЙНАЯ ОСТАНОВКА!");
+    elevatorServo.write(90); // Нейтральное положение
+    ledcWrite(MOTOR_CHANNEL, 0); // Выключить мотор
+    
+    // Мигание для индикации аварийного режима
+    for (int i = 0; i < 3; i++) {
+        digitalWrite(2, HIGH);
+        delay(100);
+        digitalWrite(2, LOW);
+        delay(100);
+    }
 }
 
 void ServoManager::testSequence() {
@@ -67,6 +80,15 @@ void ServoManager::testSequence() {
         delay(1500);
     }
     
+    // Тест мотора
+    Serial.println("🔧 Тест мотора...");
+    for (int pwm = 0; pwm <= 255; pwm += 50) {
+        ledcWrite(MOTOR_CHANNEL, pwm);
+        Serial.printf("🚀 PWM: %d\n", pwm);
+        delay(1000);
+    }
+    ledcWrite(MOTOR_CHANNEL, 0);
+    
     elevatorServo.write(90);
-    Serial.println("✅ Тест соответствия завершен");
+    Serial.println("✅ Тест завершен");
 }

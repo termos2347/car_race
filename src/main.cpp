@@ -1,20 +1,16 @@
 // САМОЛЕТ (приемник) - ПРЯМОЕ СООТВЕТСТВИЕ
-#include <esp_now.h>
 #include <WiFi.h>
 #include "Core/Types.h"
 #include "Actuators/ServoManager.h"
+#include "Communication/ESPNowManager.h"
 
 ServoManager servoManager;
+ESPNowManager& espNowManager = ESPNowManager::getInstance();
+
 const uint8_t transmitterMac[] = {0xEC, 0xE3, 0x34, 0x19, 0x23, 0xD4};
 
 static ControlData currentData;
 static unsigned long lastDataTime = 0;
-
-// Прямая функция преобразования джойстик → сервопривод
-int joystickToServo(int joystickValue) {
-    // Y1: -512 → 0°, 0 → 90°, 512 → 180°
-    return map(joystickValue, -512, 512, 0, 180);
-}
 
 void onDataReceived(const ControlData& data) {
     currentData = data;
@@ -24,20 +20,19 @@ void onDataReceived(const ControlData& data) {
     servoManager.update(currentData);
     
     digitalWrite(2, HIGH);
-}
-
-bool addPeer(const uint8_t* macAddress) {
-    esp_now_peer_info_t peerInfo = {};
-    memcpy(peerInfo.peer_addr, macAddress, 6);
-    peerInfo.channel = 0;
-    peerInfo.encrypt = false;
-    return esp_now_add_peer(&peerInfo) == ESP_OK;
+    
+    // Диагностика (ограниченная частота)
+    static unsigned long lastDebug = 0;
+    if (millis() - lastDebug > 100) {
+        Serial.printf("🎯 Y1:%-4d → PWM:%-3d\n", data.yAxis1, data.xAxis1);
+        lastDebug = millis();
+    }
 }
 
 void setup() {
     Serial.begin(115200);
     delay(500);
-    Serial.println("✈️ САМОЛЕТ ЗАПУЩЕН (прямое соответствие джойстик→серво)");
+    Serial.println("✈️ САМОЛЕТ ЗАПУЩЕН (использует ESPNowManager)");
     Serial.println("========================");
     
     pinMode(2, OUTPUT);
@@ -47,36 +42,15 @@ void setup() {
     Serial.println("🎯 Инициализация сервопривода...");
     servoManager.begin();
     
-    // Инициализация ESP-NOW
-    Serial.println("📡 Инициализация ESP-NOW...");
+    // Инициализация ESP-NOW через менеджер
+    Serial.println("📡 Инициализация ESP-NOW через менеджер...");
+    espNowManager.begin();
+    espNowManager.registerCallback(onDataReceived);
     
-    WiFi.mode(WIFI_STA);
-    
-    if (esp_now_init() != ESP_OK) {
-        Serial.println("❌ Ошибка инициализации ESP-NOW");
-        while(1) delay(1000);
-    }
-    
-    esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *incomingData, int len) {
-        if (len == sizeof(ControlData)) {
-            ControlData data;
-            memcpy(&data, incomingData, sizeof(ControlData));
-            
-            // Простая проверка CRC
-            uint16_t calculatedCRC = 0;
-            const uint8_t* bytes = (const uint8_t*)&data;
-            for(size_t i = 0; i < sizeof(ControlData) - sizeof(uint16_t); i++) {
-                calculatedCRC += bytes[i];
-            }
-            
-            if (calculatedCRC == data.crc) {
-                onDataReceived(data);
-            }
-        }
-    });
-    
-    if (addPeer(transmitterMac)) {
-        Serial.println("✅ Пульт добавлен");
+    if (espNowManager.addPeer(transmitterMac)) {
+        Serial.println("✅ Пульт добавлен через менеджер");
+    } else {
+        Serial.println("❌ Ошибка добавления пульта через менеджер");
     }
     
     Serial.println("🚀 Система готова к работе");
