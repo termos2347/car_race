@@ -22,13 +22,6 @@ void onDataReceived(const ControlData& data) {
     servoManager.update(currentData);
     
     digitalWrite(2, HIGH);
-    
-    // Диагностика (ограниченная частота - раз в 500 мс)
-    static unsigned long lastDebug = 0;
-    if (millis() - lastDebug > 500) {
-        Serial.printf("🎯 Принято: Y1=%-4d | X1=%-4d\n", data.yAxis1, data.xAxis1);
-        lastDebug = millis();
-    }
 }
 
 void setup() {

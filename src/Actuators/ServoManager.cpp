@@ -2,9 +2,7 @@
 #include <Arduino.h>
 
 void ServoManager::begin() {
-    Serial.println("🔧 Детальная инициализация ServoManager...");
-    Serial.print("📍 Сервопривод на пине: "); Serial.println(ELEVATOR_PIN);
-    Serial.print("📍 Мотор на пине: "); Serial.println(MOTOR_PIN);
+    Serial.println("🔧 Инициализация ServoManager...");
     
     // Инициализация таймеров для ESP32Servo
     ESP32PWM::allocateTimer(0);
@@ -19,34 +17,26 @@ void ServoManager::begin() {
         servoAttached = true;
         Serial.println("✅ Сервопривод SG90 инициализирован");
         
-        // ПРОСТОЙ И НАДЕЖНЫЙ ТЕСТ
+        // УПРОЩЕННЫЙ ТЕСТ - ТОЛЬКО 0, 90, 180
         Serial.println("🧪 ТЕСТ СЕРВОПРИВОДА:");
-        Serial.println("➡️  Угол 0°");
+        
+        Serial.println("➡️  0°");
         elevatorServo.write(0);
-        delay(1500);
+        delay(1000);
         
-        Serial.println("➡️  Угол 45°");
-        elevatorServo.write(45);
-        delay(1500);
-        
-        Serial.println("➡️  Угол 90° (нейтраль)");
+        Serial.println("➡️  90° (нейтраль)");
         elevatorServo.write(90);
-        delay(1500);
+        delay(1000);
         
-        Serial.println("➡️  Угол 135°");
-        elevatorServo.write(135);
-        delay(1500);
-        
-        Serial.println("➡️  Угол 180°");
+        Serial.println("➡️  180°");
         elevatorServo.write(180);
-        delay(1500);
+        delay(1000);
         
         // Возврат в нейтральное положение
-        Serial.println("➡️  Возврат в нейтраль 90°");
         elevatorServo.write(90);
         delay(500);
         
-        Serial.println("🎯 Тест завершен - сервопривод готов");
+        Serial.println("✅ Тест завершен");
     } else {
         Serial.println("❌ ОШИБКА: Сервопривод не инициализирован!");
         servoAttached = false;
@@ -57,7 +47,7 @@ void ServoManager::begin() {
     ledcSetup(MOTOR_CHANNEL, MOTOR_FREQ, MOTOR_RESOLUTION);
     ledcAttachPin(MOTOR_PIN, MOTOR_CHANNEL);
     ledcWrite(MOTOR_CHANNEL, 0);
-    Serial.println("✅ Мотор инициализирован (PWM канал 0)");
+    Serial.println("✅ Мотор инициализирован");
     
     Serial.println("✅ ServoManager готов");
 }
@@ -68,15 +58,9 @@ void ServoManager::safeServoWrite(int angle) {
     }
     
     angle = constrain(angle, 0, 180);
-    
-    // ДИАГНОСТИКА ТОЛЬКО ПРИ ЗНАЧИТЕЛЬНОМ ИЗМЕНЕНИИ УГЛА (>5°)
-    static int lastAngle = -1;
-    if (abs(angle - lastAngle) > 5) {
-        Serial.printf("🛠️  Установка серво: %d° (предыдущий %d°)\n", angle, lastAngle);
-        lastAngle = angle;
-    }
-    
     elevatorServo.write(angle);
+    
+    // УБРАН ВЫВОД ЛОГОВ - только в основном update
 }
 
 void ServoManager::update(const ControlData& data) {
@@ -100,46 +84,43 @@ void ServoManager::update(const ControlData& data) {
     }
     ledcWrite(MOTOR_CHANNEL, motorPWM);
     
-    // ОГРАНИЧЕННЫЙ ВЫВОД ДИАГНОСТИКИ (раз в 1000 мс)
+    // УПРОЩЕННЫЙ ВЫВОД ДИАГНОСТИКИ (раз в 1000 мс)
     static unsigned long lastServoDebug = 0;
     if (millis() - lastServoDebug > 1000) {
-        Serial.printf("🔧 SERVO: Y1=%-4d → угол=%-3d° | МОТОР: X1=%-4d → PWM=%-3d\n", 
-                     data.yAxis1, angle, data.xAxis1, motorPWM);
+        // Определяем статус джойстиков
+        const char* yStatus = (abs(data.yAxis1) <= JOYSTICK_DEADZONE) ? "⏹️" : "🎯";
+        const char* xStatus = (data.xAxis1 <= JOYSTICK_DEADZONE) ? "⏹️" : "🚀";
+        
+        Serial.printf("📊 SERVO: %s Y1=%-4d → %3d° | %s X1=%-4d → PWM=%-3d\n", 
+                     yStatus, data.yAxis1, angle, xStatus, data.xAxis1, motorPWM);
         lastServoDebug = millis();
     }
-}
-
-void ServoManager::quickCalibrate() {
-    Serial.println("🎯 Быстрая калибровка: серво=90°, мотор=0");
-    safeServoWrite(90);
-    ledcWrite(MOTOR_CHANNEL, 0);
-    delay(1000);
 }
 
 void ServoManager::quickTest() {
     Serial.println("🧪 БЫСТРЫЙ ТЕСТ СЕРВОПРИВОДА...");
     
     if (!servoAttached) {
-        Serial.println("❌ Сервопривод не подключен - пропуск теста");
+        Serial.println("❌ Сервопривод не подключен");
         return;
     }
     
-    // Тест крайних положений
-    Serial.println("➡️  Тест: 0° (мин)");
+    // ТОЛЬКО 0, 90, 180
+    Serial.println("➡️  0°");
     safeServoWrite(0);
-    delay(1000);
+    delay(800);
     
-    Serial.println("➡️  Тест: 90° (нейтраль)");
+    Serial.println("➡️  90°");
     safeServoWrite(90);
-    delay(1000);
+    delay(800);
     
-    Serial.println("➡️  Тест: 180° (макс)");
+    Serial.println("➡️  180°");
     safeServoWrite(180);
-    delay(1000);
+    delay(800);
     
     // Возврат в нейтральное положение
     safeServoWrite(90);
-    Serial.println("✅ Быстрый тест завершен");
+    Serial.println("✅ Тест завершен");
 }
 
 void ServoManager::emergencyStop() {
