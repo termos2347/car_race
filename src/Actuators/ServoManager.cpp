@@ -17,20 +17,20 @@ void ServoManager::begin() {
         servoAttached = true;
         Serial.println("✅ Сервопривод SG90 инициализирован");
         
-        // УПРОЩЕННЫЙ ТЕСТ - ТОЛЬКО 0, 90, 180
+        // УПРОЩЕННЫЙ ТЕСТ
         Serial.println("🧪 ТЕСТ СЕРВОПРИВОДА:");
         
         Serial.println("➡️  0°");
         elevatorServo.write(0);
-        delay(1000);
+        delay(800);
         
         Serial.println("➡️  90° (нейтраль)");
         elevatorServo.write(90);
-        delay(1000);
+        delay(800);
         
         Serial.println("➡️  180°");
         elevatorServo.write(180);
-        delay(1000);
+        delay(800);
         
         // Возврат в нейтральное положение
         elevatorServo.write(90);
@@ -59,17 +59,25 @@ void ServoManager::safeServoWrite(int angle) {
     
     angle = constrain(angle, 0, 180);
     elevatorServo.write(angle);
-    
-    // УБРАН ВЫВОД ЛОГОВ - только в основном update
 }
 
 void ServoManager::update(const ControlData& data) {
-    // ПРЕОБРАЗОВАНИЕ ДАННЫХ ДЖОЙСТИКА В УГОЛ СЕРВОПРИВОДА
+    // УЛУЧШЕННОЕ ПРЕОБРАЗОВАНИЕ ДЖОЙСТИКА В УГОЛ СЕРВО
     int angle = 90; // Нейтральное положение по умолчанию
     
-    // Применяем deadzone для устранения дрожания
-    if (data.yAxis1 < -JOYSTICK_DEADZONE || data.yAxis1 > JOYSTICK_DEADZONE) {
-        angle = map(data.yAxis1, -512, 512, 0, 180);
+    // Преобразуем значения джойстика (-512 до 512) в угол (0 до 180)
+    // Учитываем, что макс значение джойстика = 180°, мин = 0°
+    if (data.yAxis1 != 0) {
+        // Нормализуем значение джойстика от -1.0 до 1.0
+        float normalized = (float)data.yAxis1 / 512.0f;
+        
+        // Ограничиваем диапазон от -1.0 до 1.0
+        normalized = constrain(normalized, -1.0f, 1.0f);
+        
+        // Преобразуем в угол: -1.0 → 0°, 0 → 90°, 1.0 → 180°
+        angle = (int)(90.0f + (normalized * 90.0f));
+        
+        // Гарантируем границы
         angle = constrain(angle, 0, 180);
     }
     
@@ -84,16 +92,30 @@ void ServoManager::update(const ControlData& data) {
     }
     ledcWrite(MOTOR_CHANNEL, motorPWM);
     
-    // УПРОЩЕННЫЙ ВЫВОД ДИАГНОСТИКИ (раз в 1000 мс)
+    // УЛУЧШЕННАЯ ДИАГНОСТИКА (раз в 800 мс)
     static unsigned long lastServoDebug = 0;
-    if (millis() - lastServoDebug > 1000) {
-        // Определяем статус джойстиков
-        const char* yStatus = (abs(data.yAxis1) <= JOYSTICK_DEADZONE) ? "⏹️" : "🎯";
-        const char* xStatus = (data.xAxis1 <= JOYSTICK_DEADZONE) ? "⏹️" : "🚀";
+    if (millis() - lastServoDebug > 800) {
+        // Определяем направление движения
+        const char* direction;
+        if (angle < 85) direction = "⬇️ ВНИЗ";
+        else if (angle > 95) direction = "⬆️ ВВЕРХ";
+        else direction = "⏹️ НЕЙТР";
         
-        Serial.printf("📊 SERVO: %s Y1=%-4d → %3d° | %s X1=%-4d → PWM=%-3d\n", 
-                     yStatus, data.yAxis1, angle, xStatus, data.xAxis1, motorPWM);
+        // Статус мотора
+        const char* motorStatus = (motorPWM > 0) ? "🚀 ВКЛ" : "⏹️ ВЫКЛ";
+        
+        Serial.printf("📊 SERVO: %s угол=%-3d° (Y1=%-4d) | %s PWM=%-3d (X1=%-4d)\n", 
+                     direction, angle, data.yAxis1, motorStatus, motorPWM, data.xAxis1);
         lastServoDebug = millis();
+    }
+    
+    // ДОПОЛНИТЕЛЬНАЯ ДИАГНОСТИКА ПРИ КРАЙНИХ ПОЛОЖЕНИЯХ
+    static int lastAngle = -1;
+    if (abs(angle - lastAngle) > 30) { // Только при значительных изменениях
+        if (angle <= 5 || angle >= 175) {
+            Serial.printf("🎯 КРАЙНЕЕ ПОЛОЖЕНИЕ: %d° (Y1=%d)\n", angle, data.yAxis1);
+        }
+        lastAngle = angle;
     }
 }
 
@@ -106,20 +128,14 @@ void ServoManager::quickTest() {
     }
     
     // ТОЛЬКО 0, 90, 180
-    Serial.println("➡️  0°");
-    safeServoWrite(0);
-    delay(800);
+    int testAngles[] = {0, 90, 180, 90};
+    const char* positions[] = {"МИН (0°)", "НЕЙТР (90°)", "МАКС (180°)", "ВОЗВРАТ (90°)"};
     
-    Serial.println("➡️  90°");
-    safeServoWrite(90);
-    delay(800);
-    
-    Serial.println("➡️  180°");
-    safeServoWrite(180);
-    delay(800);
-    
-    // Возврат в нейтральное положение
-    safeServoWrite(90);
+    for (int i = 0; i < 4; i++) {
+        Serial.printf("➡️  %s\n", positions[i]);
+        safeServoWrite(testAngles[i]);
+        delay(700);
+    }
     Serial.println("✅ Тест завершен");
 }
 
@@ -138,35 +154,10 @@ void ServoManager::emergencyStop() {
     ledcWrite(MOTOR_CHANNEL, 0); // Выключить мотор
 }
 
-void ServoManager::testSequence() {
-    Serial.println("🎯 ПОЛНЫЙ ТЕСТ СЕРВОПРИВОДА И МОТОРА...");
-    
-    if (!servoAttached) {
-        Serial.println("❌ Сервопривод не подключен - тест невозможен");
-        return;
-    }
-    
-    // Подробный тест сервопривода
-    int testAngles[] = {0, 45, 90, 135, 180, 90};
-    const char* angleNames[] = {"MIN (0°)", "45°", "NEUTRAL (90°)", "135°", "MAX (180°)", "NEUTRAL"};
-    
-    for (int i = 0; i < 6; i++) {
-        safeServoWrite(testAngles[i]);
-        Serial.printf("📍 %s: угол=%d°\n", angleNames[i], testAngles[i]);
-        delay(2000);
-    }
-    
-    // Тест мотора
-    Serial.println("🔧 Тест мотора...");
-    int pwmValues[] = {0, 100, 180, 255, 0};
-    for (int i = 0; i < 5; i++) {
-        ledcWrite(MOTOR_CHANNEL, pwmValues[i]);
-        Serial.printf("🚀 PWM: %d/255\n", pwmValues[i]);
-        delay(1500);
-    }
-    
-    // Возврат в безопасное состояние
+// Остальные функции без изменений
+void ServoManager::quickCalibrate() {
+    Serial.println("🎯 Калибровка: серво=90°, мотор=0");
     safeServoWrite(90);
     ledcWrite(MOTOR_CHANNEL, 0);
-    Serial.println("✅ Полный тест завершен");
+    delay(1000);
 }

@@ -1,17 +1,15 @@
-
 #pragma once
 #include <ESP32Servo.h>
 #include "Core/Types.h"
 
 class ServoManager {
 public:
-    void safeServoWrite(int angle);  // ОДНО объявление в public
+    void safeServoWrite(int angle);
     void begin();
     void update(const ControlData& data);
     void quickCalibrate();
     void emergencyStop();
-    void testSequence();  
-    void quickTest(); // Быстрый тест при запуске
+    void quickTest();
     
 private:
     Servo elevatorServo;
@@ -26,7 +24,7 @@ private:
     static const int SG90_MIN_PULSE = 500;
     static const int SG90_MAX_PULSE = 2400;
     
-    // Deadzone для джойстика
+    // Deadzone для джойстика (только для мотора)
     static const int JOYSTICK_DEADZONE = 20;
     
     bool servoAttached = false;
