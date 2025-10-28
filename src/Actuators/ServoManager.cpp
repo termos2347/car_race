@@ -54,36 +54,56 @@ void ServoManager::begin() {
 
 void ServoManager::safeServoWrite(int angle) {
     if (!servoAttached) return;
+    
+    // Гарантируем границы
     angle = constrain(angle, 0, 180);
+    
+    // УБРАН ДЕБАГ - он мешает быстродействию
     elevatorServo.write(angle);
 }
 
 void ServoManager::update(const ControlData& data) {
-    // ПРЕОБРАЗОВАНИЕ ДАННЫХ ДЖОЙСТИКА В УГОЛ СЕРВОПРИВОДА
-    int angle = 90; // Нейтральное положение
+    // УЛУЧШЕННАЯ ЛОГИКА ПРЕОБРАЗОВАНИЯ С ФИЛЬТРАЦИЕЙ
+    static int lastProcessedAngle = 90;
+    static unsigned long lastStableTime = 0;
     
-    // Применяем deadzone для устранения дрожания
-    if (data.yAxis1 < -JOYSTICK_DEADZONE || data.yAxis1 > JOYSTICK_DEADZONE) {
-        angle = map(data.yAxis1, -512, 512, 0, 180);
-        angle = constrain(angle, 0, 180);
+    int targetAngle = 90; // Нейтральное положение
+    
+    // УВЕЛИЧИМ DEADZONE ДЛЯ ЛУЧШЕЙ СТАБИЛЬНОСТИ
+    if (abs(data.yAxis1) > 50) { // Deadzone 50 вместо 20
+        // Плавное преобразование с ограничением скорости изменения
+        float normalized = (float)data.yAxis1 / 512.0f;
+        normalized = constrain(normalized, -1.0f, 1.0f);
+        targetAngle = 90 + (normalized * 90.0f);
+        targetAngle = constrain(targetAngle, 0, 180);
+        
+        // ФИЛЬТР: ограничиваем скорость изменения угла
+        int angleDiff = targetAngle - lastProcessedAngle;
+        if (abs(angleDiff) > 10) { // Максимальное изменение за один вызов
+            targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
+        }
     }
     
-    // Управление сервоприводом
-    safeServoWrite(angle);
+    // Обновляем сервопривод только если угол изменился
+    if (targetAngle != lastProcessedAngle) {
+        safeServoWrite(targetAngle);
+        lastProcessedAngle = targetAngle;
+        lastStableTime = millis();
+    }
     
-    // Управление мотором с deadzone
+    // Управление мотором с увеличенным deadzone
     int motorPWM = 0;
-    if (data.xAxis1 > JOYSTICK_DEADZONE) {
-        motorPWM = map(data.xAxis1, JOYSTICK_DEADZONE, 512, 80, 255);
-        motorPWM = constrain(motorPWM, 0, 255);
+    if (data.xAxis1 > 80) { // Deadzone 80 вместо 20
+        motorPWM = map(data.xAxis1, 80, 512, 100, 255);
+        motorPWM = constrain(motorPWM, 100, 255);
     }
     ledcWrite(MOTOR_CHANNEL, motorPWM);
     
-    // ДИАГНОСТИКА - ВЫВОДИМ КАЖДЫЕ 500 МС
+    // ДИАГНОСТИКА БЕЗ СТАТУСОВ
     static unsigned long lastUpdate = 0;
     if (millis() - lastUpdate > 500) {
-        Serial.printf("📊 SERVO: %3d° (Y1=%-4d) | MOTOR: PWM=%-3d (X1=%-4d)\n", 
-                     angle, data.yAxis1, motorPWM, data.xAxis1);
+        Serial.printf("SERVO: %3d° (Y1=%-4d) | MOTOR: PWM=%-3d (X1=%-4d)\n", 
+                     lastProcessedAngle, data.yAxis1, motorPWM, data.xAxis1);
         lastUpdate = millis();
     }
 }
