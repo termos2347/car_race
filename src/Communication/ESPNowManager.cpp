@@ -21,11 +21,12 @@ void ESPNowManager::begin() {
     Serial.print("📡 MAC приемника: ");
     Serial.println(WiFi.macAddress());
     
-    Serial.println("✅ ESP-NOW приемник готов");
+    Serial.println("✅ ESP-NOW инициализирован");
 }
 
 void ESPNowManager::registerCallback(DataReceivedCallback callback) {
     dataCallback = callback;
+    Serial.println("✅ Callback зарегистрирован в ESPNowManager");
 }
 
 bool ESPNowManager::addPeer(const uint8_t* macAddress) {
@@ -35,7 +36,12 @@ bool ESPNowManager::addPeer(const uint8_t* macAddress) {
     peerInfo.encrypt = false;
     
     if (esp_now_add_peer(&peerInfo) == ESP_OK) {
-        Serial.println("✅ Peer добавлен через ESPNowManager");
+        Serial.print("✅ Peer добавлен: ");
+        for (int i = 0; i < 6; i++) {
+            Serial.print(macAddress[i], HEX);
+            if (i < 5) Serial.print(":");
+        }
+        Serial.println();
         return true;
     } else {
         Serial.println("❌ Ошибка добавления peer через ESPNowManager");
@@ -60,7 +66,7 @@ void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int 
     }
     
     if (calculatedCRC != receivedData.crc) {
-        Serial.println("❌ Ошибка CRC");
+        Serial.printf("❌ Ошибка CRC: получено %04X, вычислено %04X\n", receivedData.crc, calculatedCRC);
         return;
     }
     
@@ -69,10 +75,13 @@ void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int 
         espNowInstance->dataCallback(receivedData);
     }
     
-    // Редкая диагностика для отладки связи
-    static unsigned long lastPrint = 0;
-    if (millis() - lastPrint > 5000) {
-        Serial.printf("📥 ESP-NOW: связь стабильна (последний CRC: %04X)\n", receivedData.crc);
-        lastPrint = millis();
+    // Диагностика связи (редко)
+    static unsigned long lastStablePrint = 0;
+    static int packetCount = 0;
+    packetCount++;
+    
+    if (millis() - lastStablePrint > 10000) {
+        Serial.printf("📥 ESP-NOW: стабильная связь, пакетов: %d\n", packetCount);
+        lastStablePrint = millis();
     }
 }
