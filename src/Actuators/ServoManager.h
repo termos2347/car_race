@@ -30,7 +30,7 @@ private:
     static const int SG90_MIN_PULSE = 500;
     static const int SG90_MAX_PULSE = 2400;
     
-    static const int JOYSTICK_DEADZONE = 50;
+    static const int JOYSTICK_DEADZONE = 10;
     
     // Приватные методы
     void safeServoWrite(int angle);

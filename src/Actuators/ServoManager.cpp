@@ -63,44 +63,49 @@ void ServoManager::safeServoWrite(int angle) {
 }
 
 void ServoManager::update(const ControlData& data) {
-    // УЛУЧШЕННАЯ ЛОГИКА ПРЕОБРАЗОВАНИЯ С ФИЛЬТРАЦИЕЙ
     static int lastProcessedAngle = 90;
-    static unsigned long lastStableTime = 0;
-    
-    int targetAngle = 90; // Нейтральное положение
-    
-    // УВЕЛИЧИМ DEADZONE ДЛЯ ЛУЧШЕЙ СТАБИЛЬНОСТИ
-    if (abs(data.yAxis1) > 50) { // Deadzone 50 вместо 20
-        // Плавное преобразование с ограничением скорости изменения
-        float normalized = (float)data.yAxis1 / 512.0f;
-        normalized = constrain(normalized, -1.0f, 1.0f);
-        targetAngle = 90 + (normalized * 90.0f);
-        targetAngle = constrain(targetAngle, 0, 180);
+    static unsigned long lastUpdate = 0;
+    int targetAngle = 90; // Нейтральное положение по умолчанию
+
+    // Применяем deadzone
+    if (abs(data.yAxis1) > JOYSTICK_DEADZONE) {
+        // ПРЯМОЕ ПРЕОБРАЗОВАНИЕ: -512..+512 -> 0..180
+        // Если направление неправильное, поменяйте 0 и 180 местами
+        targetAngle = map(data.yAxis1, -512, 512, 180, 0);
         
-        // ФИЛЬТР: ограничиваем скорость изменения угла
-        int angleDiff = targetAngle - lastProcessedAngle;
-        if (abs(angleDiff) > 10) { // Максимальное изменение за один вызов
-            targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
-        }
+        // Альтернатива (инвертированное направление):
+        // targetAngle = map(data.yAxis1, -512, 512, 180, 0);
+        
+        targetAngle = constrain(targetAngle, 0, 180);
     }
     
-    // Обновляем сервопривод только если угол изменился
+    // Ограничиваем скорость изменения угла
+    int angleDiff = targetAngle - lastProcessedAngle;
+    if (abs(angleDiff) > 10) {
+        targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
+    }
+    
+    // Обновляем сервопривод если угол изменился
     if (targetAngle != lastProcessedAngle) {
         safeServoWrite(targetAngle);
         lastProcessedAngle = targetAngle;
-        lastStableTime = millis();
+        
+        // Выводим информацию при каждом изменении угла
+        Serial.printf("SERVO: %3d° (input Y1=%-4d)\n", targetAngle, data.yAxis1);
     }
     
-    // Управление мотором с увеличенным deadzone
+    // Управление мотором (ось X)
     int motorPWM = 0;
-    if (data.xAxis1 > 80) { // Deadzone 80 вместо 20
+    if (data.xAxis1 > 80) {
         motorPWM = map(data.xAxis1, 80, 512, 100, 255);
-        motorPWM = constrain(motorPWM, 100, 255);
+    } else if (data.xAxis1 < -80) {
+        // Если нужно реверсивное управление
+        motorPWM = 0; // или добавить обратное направление
     }
+    motorPWM = constrain(motorPWM, 0, 255);
     ledcWrite(MOTOR_CHANNEL, motorPWM);
     
-    // ДИАГНОСТИКА БЕЗ СТАТУСОВ
-    static unsigned long lastUpdate = 0;
+    // Диагностика
     if (millis() - lastUpdate > 500) {
         Serial.printf("SERVO: %3d° (Y1=%-4d) | MOTOR: PWM=%-3d (X1=%-4d)\n", 
                      lastProcessedAngle, data.yAxis1, motorPWM, data.xAxis1);
