@@ -4,16 +4,22 @@
 
 class ServoManager {
 public:
-    void safeServoWrite(int angle);
     void begin();
     void update(const ControlData& data);
     void quickCalibrate();
     void emergencyStop();
     void quickTest();
-    
+    void testSequence();
+    void setServoAngle(int angle);
+    void setMotorSpeed(int speed);
+    bool isServoAttached();
+    void diagnostic();
+
 private:
     Servo elevatorServo;
+    bool servoAttached = false;
     
+    // Константы
     static const uint8_t ELEVATOR_PIN = HardwareConfig::ELEVATOR_PIN;
     static const uint8_t MOTOR_PIN = HardwareConfig::MOTOR_PIN;
     
@@ -24,8 +30,8 @@ private:
     static const int SG90_MIN_PULSE = 500;
     static const int SG90_MAX_PULSE = 2400;
     
-    // Deadzone для джойстика (только для мотора)
     static const int JOYSTICK_DEADZONE = 20;
     
-    bool servoAttached = false;
+    // Приватные методы
+    void safeServoWrite(int angle);
 };

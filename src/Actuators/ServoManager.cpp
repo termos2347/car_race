@@ -17,14 +17,14 @@ void ServoManager::begin() {
         servoAttached = true;
         Serial.println("✅ Сервопривод SG90 инициализирован");
         
-        // УПРОЩЕННЫЙ ТЕСТ
+        // Тест сервопривода
         Serial.println("🧪 ТЕСТ СЕРВОПРИВОДА:");
         
         Serial.println("➡️  0°");
         elevatorServo.write(0);
         delay(800);
         
-        Serial.println("➡️  90° (нейтраль)");
+        Serial.println("➡️  90°");
         elevatorServo.write(90);
         delay(800);
         
@@ -49,35 +49,22 @@ void ServoManager::begin() {
     ledcWrite(MOTOR_CHANNEL, 0);
     Serial.println("✅ Мотор инициализирован");
     
-    Serial.println("✅ ServoManager готов");
+    Serial.println("🎯 ServoManager готов");
 }
 
 void ServoManager::safeServoWrite(int angle) {
-    if (!servoAttached) {
-        return;
-    }
-    
+    if (!servoAttached) return;
     angle = constrain(angle, 0, 180);
     elevatorServo.write(angle);
 }
 
 void ServoManager::update(const ControlData& data) {
-    // УЛУЧШЕННОЕ ПРЕОБРАЗОВАНИЕ ДЖОЙСТИКА В УГОЛ СЕРВО
-    int angle = 90; // Нейтральное положение по умолчанию
+    // ПРЕОБРАЗОВАНИЕ ДАННЫХ ДЖОЙСТИКА В УГОЛ СЕРВОПРИВОДА
+    int angle = 90; // Нейтральное положение
     
-    // Преобразуем значения джойстика (-512 до 512) в угол (0 до 180)
-    // Учитываем, что макс значение джойстика = 180°, мин = 0°
-    if (data.yAxis1 != 0) {
-        // Нормализуем значение джойстика от -1.0 до 1.0
-        float normalized = (float)data.yAxis1 / 512.0f;
-        
-        // Ограничиваем диапазон от -1.0 до 1.0
-        normalized = constrain(normalized, -1.0f, 1.0f);
-        
-        // Преобразуем в угол: -1.0 → 0°, 0 → 90°, 1.0 → 180°
-        angle = (int)(90.0f + (normalized * 90.0f));
-        
-        // Гарантируем границы
+    // Применяем deadzone для устранения дрожания
+    if (data.yAxis1 < -JOYSTICK_DEADZONE || data.yAxis1 > JOYSTICK_DEADZONE) {
+        angle = map(data.yAxis1, -512, 512, 0, 180);
         angle = constrain(angle, 0, 180);
     }
     
@@ -92,31 +79,20 @@ void ServoManager::update(const ControlData& data) {
     }
     ledcWrite(MOTOR_CHANNEL, motorPWM);
     
-    // УЛУЧШЕННАЯ ДИАГНОСТИКА (раз в 800 мс)
-    static unsigned long lastServoDebug = 0;
-    if (millis() - lastServoDebug > 800) {
-        // Определяем направление движения
-        const char* direction;
-        if (angle < 85) direction = "⬇️ ВНИЗ";
-        else if (angle > 95) direction = "⬆️ ВВЕРХ";
-        else direction = "⏹️ НЕЙТР";
-        
-        // Статус мотора
-        const char* motorStatus = (motorPWM > 0) ? "🚀 ВКЛ" : "⏹️ ВЫКЛ";
-        
-        Serial.printf("📊 SERVO: %s угол=%-3d° (Y1=%-4d) | %s PWM=%-3d (X1=%-4d)\n", 
-                     direction, angle, data.yAxis1, motorStatus, motorPWM, data.xAxis1);
-        lastServoDebug = millis();
+    // ДИАГНОСТИКА - ВЫВОДИМ КАЖДЫЕ 500 МС
+    static unsigned long lastUpdate = 0;
+    if (millis() - lastUpdate > 500) {
+        Serial.printf("📊 SERVO: %3d° (Y1=%-4d) | MOTOR: PWM=%-3d (X1=%-4d)\n", 
+                     angle, data.yAxis1, motorPWM, data.xAxis1);
+        lastUpdate = millis();
     }
-    
-    // ДОПОЛНИТЕЛЬНАЯ ДИАГНОСТИКА ПРИ КРАЙНИХ ПОЛОЖЕНИЯХ
-    static int lastAngle = -1;
-    if (abs(angle - lastAngle) > 30) { // Только при значительных изменениях
-        if (angle <= 5 || angle >= 175) {
-            Serial.printf("🎯 КРАЙНЕЕ ПОЛОЖЕНИЕ: %d° (Y1=%d)\n", angle, data.yAxis1);
-        }
-        lastAngle = angle;
-    }
+}
+
+void ServoManager::quickCalibrate() {
+    Serial.println("🎯 Калибровка: серво=90°, мотор=0");
+    safeServoWrite(90);
+    ledcWrite(MOTOR_CHANNEL, 0);
+    delay(1000);
 }
 
 void ServoManager::quickTest() {
@@ -127,37 +103,73 @@ void ServoManager::quickTest() {
         return;
     }
     
-    // ТОЛЬКО 0, 90, 180
     int testAngles[] = {0, 90, 180, 90};
-    const char* positions[] = {"МИН (0°)", "НЕЙТР (90°)", "МАКС (180°)", "ВОЗВРАТ (90°)"};
-    
     for (int i = 0; i < 4; i++) {
-        Serial.printf("➡️  %s\n", positions[i]);
         safeServoWrite(testAngles[i]);
-        delay(700);
+        Serial.printf("➡️  %d°\n", testAngles[i]);
+        delay(600);
     }
     Serial.println("✅ Тест завершен");
 }
 
 void ServoManager::emergencyStop() {
-    static unsigned long lastEmergencyCall = 0;
-    unsigned long currentTime = millis();
-    
-    // Защита от частых вызовов
-    if (currentTime - lastEmergencyCall < 1000) {
-        return;
-    }
-    lastEmergencyCall = currentTime;
-    
     Serial.println("🛑 АВАРИЙНАЯ ОСТАНОВКА!");
-    safeServoWrite(90); // Нейтральное положение
-    ledcWrite(MOTOR_CHANNEL, 0); // Выключить мотор
-}
-
-// Остальные функции без изменений
-void ServoManager::quickCalibrate() {
-    Serial.println("🎯 Калибровка: серво=90°, мотор=0");
     safeServoWrite(90);
     ledcWrite(MOTOR_CHANNEL, 0);
-    delay(1000);
+}
+
+void ServoManager::testSequence() {
+    Serial.println("🎯 ПОЛНЫЙ ТЕСТ СЕРВОПРИВОДА И МОТОРА...");
+    
+    if (!servoAttached) {
+        Serial.println("❌ Сервопривод не подключен");
+        return;
+    }
+    
+    // Тест сервопривода
+    int testAngles[] = {0, 45, 90, 135, 180, 90};
+    for (int i = 0; i < 6; i++) {
+        safeServoWrite(testAngles[i]);
+        Serial.printf("📍 Угол: %d°\n", testAngles[i]);
+        delay(800);
+    }
+    
+    // Тест мотора
+    int pwmValues[] = {0, 100, 180, 255, 0};
+    for (int i = 0; i < 5; i++) {
+        ledcWrite(MOTOR_CHANNEL, pwmValues[i]);
+        Serial.printf("🚀 PWM: %d/255\n", pwmValues[i]);
+        delay(1000);
+    }
+    
+    // Возврат в безопасное состояние
+    safeServoWrite(90);
+    ledcWrite(MOTOR_CHANNEL, 0);
+    Serial.println("✅ Полный тест завершен");
+}
+
+void ServoManager::setServoAngle(int angle) {
+    if (!servoAttached) return;
+    angle = constrain(angle, 0, 180);
+    safeServoWrite(angle);
+    Serial.printf("🎯 Установлен угол: %d°\n", angle);
+}
+
+void ServoManager::setMotorSpeed(int speed) {
+    speed = constrain(speed, 0, 255);
+    ledcWrite(MOTOR_CHANNEL, speed);
+    Serial.printf("🚀 Установлена скорость: %d/255\n", speed);
+}
+
+bool ServoManager::isServoAttached() {
+    return servoAttached;
+}
+
+void ServoManager::diagnostic() {
+    Serial.println("📊 ДИАГНОСТИКА SERVOMANAGER:");
+    Serial.printf("   Сервопривод: %s\n", servoAttached ? "ПОДКЛЮЧЕН" : "ОТКЛЮЧЕН");
+    Serial.printf("   Пин сервопривода: %d\n", ELEVATOR_PIN);
+    Serial.printf("   Пин мотора: %d\n", MOTOR_PIN);
+    Serial.printf("   Канал PWM: %d\n", MOTOR_CHANNEL);
+    Serial.printf("   Deadzone: %d\n", JOYSTICK_DEADZONE);
 }

@@ -1,4 +1,4 @@
-// САМОЛЕТ (приемник) - УЛУЧШЕННАЯ ВЕРСИЯ
+// САМОЛЕТ (приемник) - УПРОЩЕННАЯ ВЕРСИЯ
 #include <WiFi.h>
 #include "Core/Types.h"
 #include "Actuators/ServoManager.h"
@@ -18,7 +18,7 @@ void onDataReceived(const ControlData& data) {
     lastDataTime = millis();
     dataReceived = true;
     
-    // НЕМЕДЛЕННОЕ обновление сервопривода
+    // ОБНОВЛЕНИЕ СЕРВОПРИВОДА И МОТОРА
     servoManager.update(currentData);
     
     digitalWrite(2, HIGH);
@@ -27,18 +27,16 @@ void onDataReceived(const ControlData& data) {
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("\n\n✈️ САМОЛЕТ ЗАПУЩЕН - ДИАГНОСТИЧЕСКАЯ ВЕРСИЯ");
+    Serial.println("\n\n✈️ САМОЛЕТ ЗАПУЩЕН");
     Serial.println("========================================");
     
     pinMode(2, OUTPUT);
     digitalWrite(2, LOW);
     
-    // Инициализация ServoManager (тест ВНУТРИ begin())
-    Serial.println("🔧 Инициализация ServoManager...");
-    servoManager.begin();  // Тест сервопривода УЖЕ внутри этой функции
+    // Инициализация ServoManager
+    servoManager.begin();
 
     // Инициализация ESP-NOW
-    Serial.println("📡 Инициализация ESP-NOW...");
     espNowManager.begin();
     espNowManager.registerCallback(onDataReceived);
     
@@ -49,8 +47,6 @@ void setup() {
     }
     
     Serial.println("🚀 Система готова к работе");
-    Serial.println("   Y1: -512=0°, 0=90°, 512=180°");
-    Serial.println("   X1: 0=stop, 512=max speed");
     Serial.println("========================================");
 }
 
