@@ -85,15 +85,6 @@ void ServoManager::update(const ControlData& data) {
         targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
     }
     
-    // Обновляем сервопривод если угол изменился
-    if (targetAngle != lastProcessedAngle) {
-        safeServoWrite(targetAngle);
-        lastProcessedAngle = targetAngle;
-        
-        // Выводим информацию при каждом изменении угла
-        Serial.printf("SERVO: %3d° (input Y1=%-4d)\n", targetAngle, data.yAxis1);
-    }
-    
     // Управление мотором (ось X)
     int motorPWM = 0;
     if (data.xAxis1 > 80) {
