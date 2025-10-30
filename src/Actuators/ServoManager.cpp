@@ -67,39 +67,35 @@ void ServoManager::update(const ControlData& data) {
     static unsigned long lastUpdate = 0;
     int targetAngle = 90; // Нейтральное положение по умолчанию
 
-    // Применяем deadzone
+    // Прямое преобразование без инверсии
     if (abs(data.yAxis1) > JOYSTICK_DEADZONE) {
-        targetAngle = map(data.yAxis1, -512, 512, 180, 0);
+        float ratio = (data.yAxis1 + 512) / 1024.0f;
+        targetAngle = ratio * 180;
         targetAngle = constrain(targetAngle, 0, 180);
     }
     
     // Ограничиваем скорость изменения угла
-    int angleDiff = targetAngle - lastProcessedAngle;
-    if (abs(angleDiff) > 10) {
-        targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
-    }
-   
-    // Обновляем сервопривод если угол изменился
-    if (targetAngle != lastProcessedAngle) {
-        safeServoWrite(targetAngle);
-        lastProcessedAngle = targetAngle;        
-    }
+    //int angleDiff = targetAngle - lastProcessedAngle;
+    //if (abs(angleDiff) > 10) {
+    //    targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
+    //}
+
+    safeServoWrite(targetAngle);
+    lastProcessedAngle = targetAngle;        
+    
     
     // Управление мотором (ось X)
     int motorPWM = 0;
-    if (data.xAxis1 > 80) {
-        motorPWM = map(data.xAxis1, 80, 512, 100, 255);
-    } else if (data.xAxis1 < -80) {
-        // Если нужно реверсивное управление
-        motorPWM = 0; // или добавить обратное направление
+    if (abs(data.xAxis1) > JOYSTICK_DEADZONE) {
+        motorPWM = map(abs(data.xAxis1), JOYSTICK_DEADZONE, 512, 0, 255);
     }
     motorPWM = constrain(motorPWM, 0, 255);
     ledcWrite(MOTOR_CHANNEL, motorPWM);
     
     // Диагностика
-    if (millis() - lastUpdate > 500) {
-        Serial.printf("SERVO: %3d° (Y1=%-4d) | MOTOR: PWM=%-3d (X1=%-4d)\n", 
-                     lastProcessedAngle, data.yAxis1, motorPWM, data.xAxis1);
+    if (millis() - lastUpdate > 10) {
+        Serial.printf("SERVO: Y1=%-4d -> Angle=%d° | MOTOR: X1=%-4d -> PWM=%d\n", 
+                     data.yAxis1, targetAngle, data.xAxis1, motorPWM);
         lastUpdate = millis();
     }
 }
