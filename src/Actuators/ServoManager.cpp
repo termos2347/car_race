@@ -65,26 +65,28 @@ void ServoManager::safeServoWrite(int angle) {
 void ServoManager::update(const ControlData& data) {
     static int lastProcessedAngle = 90;
     static unsigned long lastUpdate = 0;
-    int targetAngle = 90; // Нейтральное положение по умолчанию
-
+    
+    // УПРОЩЕННАЯ ЛОГИКА БЕЗ ОГРАНИЧЕНИЙ
+    int targetAngle = 90; // Нейтральное положение
+    
     // Прямое преобразование без инверсии
     if (abs(data.yAxis1) > JOYSTICK_DEADZONE) {
-        float ratio = (data.yAxis1 + 512) / 1024.0f;
-        targetAngle = ratio * 180;
+        targetAngle = map(data.yAxis1, -512, 512, 180, 0);
         targetAngle = constrain(targetAngle, 0, 180);
     }
     
-    // Ограничиваем скорость изменения угла
-    //int angleDiff = targetAngle - lastProcessedAngle;
-    //if (abs(angleDiff) > 10) {
-    //    targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
-    //}
-
+    // ⚠️ ВРЕМЕННО УБИРАЕМ ОГРАНИЧЕНИЕ СКОРОСТИ!
+    // Комментируем эти строки:
+    // int angleDiff = targetAngle - lastProcessedAngle;
+    // if (abs(angleDiff) > 10) {
+    //     targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
+    // }
+    
+    // Немедленно устанавливаем угол
     safeServoWrite(targetAngle);
-    lastProcessedAngle = targetAngle;        
+    lastProcessedAngle = targetAngle;
     
-    
-    // Управление мотором (ось X)
+    // Управление мотором (упрощенное)
     int motorPWM = 0;
     if (abs(data.xAxis1) > JOYSTICK_DEADZONE) {
         motorPWM = map(abs(data.xAxis1), JOYSTICK_DEADZONE, 512, 0, 255);
@@ -93,8 +95,8 @@ void ServoManager::update(const ControlData& data) {
     ledcWrite(MOTOR_CHANNEL, motorPWM);
     
     // Диагностика
-    if (millis() - lastUpdate > 10) {
-        Serial.printf("SERVO: Y1=%-4d -> Angle=%d° | MOTOR: X1=%-4d -> PWM=%d\n", 
+    if (millis() - lastUpdate > 200) {
+        Serial.printf("🎯 SERVO: Y1=%-4d -> Angle=%d° | MOTOR: X1=%-4d -> PWM=%d\n", 
                      data.yAxis1, targetAngle, data.xAxis1, motorPWM);
         lastUpdate = millis();
     }
