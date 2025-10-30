@@ -69,13 +69,7 @@ void ServoManager::update(const ControlData& data) {
 
     // Применяем deadzone
     if (abs(data.yAxis1) > JOYSTICK_DEADZONE) {
-        // ПРЯМОЕ ПРЕОБРАЗОВАНИЕ: -512..+512 -> 0..180
-        // Если направление неправильное, поменяйте 0 и 180 местами
         targetAngle = map(data.yAxis1, -512, 512, 180, 0);
-        
-        // Альтернатива (инвертированное направление):
-        // targetAngle = map(data.yAxis1, -512, 512, 180, 0);
-        
         targetAngle = constrain(targetAngle, 0, 180);
     }
     
@@ -83,6 +77,12 @@ void ServoManager::update(const ControlData& data) {
     int angleDiff = targetAngle - lastProcessedAngle;
     if (abs(angleDiff) > 10) {
         targetAngle = lastProcessedAngle + (angleDiff > 0 ? 10 : -10);
+    }
+   
+    // Обновляем сервопривод если угол изменился
+    if (targetAngle != lastProcessedAngle) {
+        safeServoWrite(targetAngle);
+        lastProcessedAngle = targetAngle;        
     }
     
     // Управление мотором (ось X)
