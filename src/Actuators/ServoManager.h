@@ -14,10 +14,12 @@ public:
     void setMotorSpeed(int speed);
     bool isServoAttached();
     void diagnostic();
+    void debugJoystick(const ControlData& data);
 
 private:
     Servo elevatorServo;
     bool servoAttached = false;
+    int currentAngle = 90;
     
     // Константы
     static const uint8_t ELEVATOR_PIN = HardwareConfig::ELEVATOR_PIN;
@@ -30,7 +32,8 @@ private:
     static const int SG90_MIN_PULSE = 500;
     static const int SG90_MAX_PULSE = 2400;
     
-    static const int JOYSTICK_DEADZONE = 10;
+    static const int JOYSTICK_DEADZONE = 50;  // УВЕЛИЧЕНА мертвая зона!
+    static const int JOYSTICK_NEUTRAL = -33;  // Реальное нейтральное положение
     
     // Приватные методы
     void safeServoWrite(int angle);

@@ -12,11 +12,18 @@ const uint8_t transmitterMac[] = {0x14, 0x33, 0x5C, 0x37, 0x82, 0x58};
 static ControlData currentData;
 static unsigned long lastDataTime = 0;
 static bool dataReceived = false;
+static unsigned long lastDebugTime = 0;
 
 void onDataReceived(const ControlData& data) {
     currentData = data;
     lastDataTime = millis();
     dataReceived = true;
+    
+    // Отладочный вывод джойстика (ограниченная частота)
+    if (millis() - lastDebugTime > 200) {
+        servoManager.debugJoystick(data);
+        lastDebugTime = millis();
+    }
     
     // ОБНОВЛЕНИЕ СЕРВОПРИВОДА И МОТОРА
     servoManager.update(currentData);
@@ -64,6 +71,7 @@ void loop() {
         if (firstData) {
             firstData = false;
             Serial.println("✅ Первые данные получены - система активна");
+            servoManager.quickCalibrate();  // Калибровка при первом подключении
         }
     }
     
