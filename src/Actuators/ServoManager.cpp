@@ -47,66 +47,63 @@ void ServoManager::safeServoWrite(int angle) {
 }
 
 void ServoManager::update(const ControlData& data) {
-    static unsigned long lastDebug = 0;
+    // ПРОСТАЯ И НАДЕЖНАЯ ЛОГИКА:
+    // Учитываем реальное нейтральное положение джойстика (-33)
     
-    // ДИАГНОСТИКА: Всегда выводим сырые данные джойстика
-    if (millis() - lastDebug > 150) {
-        debugJoystick(data);
-        lastDebug = millis();
+    int targetAngle = 90; // Всегда по умолчанию 90°
+    
+    // Вычисляем отклонение от реального нейтрального положения
+    int yOffset = data.yAxis1 - JOYSTICK_NEUTRAL;
+    
+    // Применяем мертвую зону к ОТКЛОНЕНИЮ, а не к абсолютному значению
+    if (abs(yOffset) > JOYSTICK_DEADZONE) {
+        if (yOffset > 0) {
+            // Джойстик ВВЕРХ от нейтрали
+            targetAngle = map(yOffset, JOYSTICK_DEADZONE, 512 - JOYSTICK_NEUTRAL, 90, 180);
+        } else {
+            // Джойстик ВНИЗ от нейтрали  
+            targetAngle = map(yOffset, -JOYSTICK_DEADZONE, -512 - JOYSTICK_NEUTRAL, 90, 0);
+        }
     }
     
-    // ПРОСТАЯ И ПОНЯТНАЯ ЛОГИКА:
-    // Джойстик в нейтральном положении = 90°
-    // Джойстик вверх = увеличиваем угол (до 180°)
-    // Джойстик вниз = уменьшаем угол (до 0°)
-    
-    int targetAngle = 90; // По умолчанию нейтральное положение
-    
-    // Проверяем, находится ли джойстик вне мертвой зоны
-    if (data.yAxis1 > JOYSTICK_DEADZONE) {
-        // Джойстик ОТ себя (вверх) - увеличиваем угол
-        targetAngle = map(data.yAxis1, JOYSTICK_DEADZONE, 512, 90, 180);
-    } 
-    else if (data.yAxis1 < -JOYSTICK_DEADZONE) {
-        // Джойстик НА себя (вниз) - уменьшаем угол
-        targetAngle = map(data.yAxis1, -JOYSTICK_DEADZONE, -512, 90, 0);
-    }
-    // Если в мертвой зоне - остаемся на 90°
-    
-    // Устанавливаем угол сразу
+    // НЕМЕДЛЕННО устанавливаем угол (без сглаживания!)
     safeServoWrite(targetAngle);
     
-    // Управление мотором (упрощенное)
+    // Управление мотором
     int motorPWM = 0;
-    if (data.xAxis1 > JOYSTICK_DEADZONE) {
-        motorPWM = map(data.xAxis1, JOYSTICK_DEADZONE, 512, 0, 255);
+    int xOffset = data.xAxis1 - JOYSTICK_NEUTRAL; // Аналогично для оси X
+    
+    if (abs(xOffset) > JOYSTICK_DEADZONE && xOffset > 0) {
+        motorPWM = map(xOffset, JOYSTICK_DEADZONE, 512 - JOYSTICK_NEUTRAL, 0, 255);
     }
     motorPWM = constrain(motorPWM, 0, 255);
     ledcWrite(MOTOR_CHANNEL, motorPWM);
 }
 
 void ServoManager::debugJoystick(const ControlData& data) {
-    // Определяем направление для понятного вывода
-    const char* direction = "НЕЙТРАЛЬ";
-    if (data.yAxis1 > JOYSTICK_DEADZONE) direction = "ВВЕРХ";
-    else if (data.yAxis1 < -JOYSTICK_DEADZONE) direction = "ВНИЗ";
+    // Вычисляем отклонение от нейтрали
+    int yOffset = data.yAxis1 - JOYSTICK_NEUTRAL;
+    int xOffset = data.xAxis1 - JOYSTICK_NEUTRAL;
     
-    int targetAngle = 90;
-    if (data.yAxis1 > JOYSTICK_DEADZONE) {
-        targetAngle = map(data.yAxis1, JOYSTICK_DEADZONE, 512, 90, 180);
-    } else if (data.yAxis1 < -JOYSTICK_DEADZONE) {
-        targetAngle = map(data.yAxis1, -JOYSTICK_DEADZONE, -512, 90, 0);
-    }
+    const char* yDirection = "НЕЙТРАЛЬ";
+    if (yOffset > JOYSTICK_DEADZONE) yDirection = "ВВЕРХ  ";
+    else if (yOffset < -JOYSTICK_DEADZONE) yDirection = "ВНИЗ   ";
     
-    Serial.printf("🎮 Y1=%-4d %-10s -> Угол=%d° | Текущий=%d°\n", 
-                 data.yAxis1, direction, targetAngle, currentAngle);
+    const char* xDirection = "НЕЙТРАЛЬ";
+    if (xOffset > JOYSTICK_DEADZONE) xDirection = "ВПРАВО";
+    else if (xOffset < -JOYSTICK_DEADZONE) xDirection = "ВЛЕВО ";
+    
+    Serial.printf("🎮 Y1=%-4d(%+4d) %s | X1=%-4d(%+4d) %s | Servo=%d°\n", 
+                 data.yAxis1, yOffset, yDirection,
+                 data.xAxis1, xOffset, xDirection,
+                 currentAngle);
 }
 
 void ServoManager::quickCalibrate() {
     Serial.println("🎯 Калибровка: серво=90°, мотор=0");
     safeServoWrite(90);
     ledcWrite(MOTOR_CHANNEL, 0);
-    delay(500);
+    delay(100);
 }
 
 void ServoManager::quickTest() {
@@ -117,61 +114,33 @@ void ServoManager::quickTest() {
         return;
     }
     
-    Serial.println("➡️  0°");
-    safeServoWrite(0);
-    delay(500);
-    
-    Serial.println("➡️  90°");
-    safeServoWrite(90);
-    delay(500);
-    
-    Serial.println("➡️  180°");
-    safeServoWrite(180);
-    delay(500);
-    
-    Serial.println("➡️  90°");
-    safeServoWrite(90);
-    delay(500);
-    
+    int testAngles[] = {0, 90, 180, 90};
+    for (int i = 0; i < 4; i++) {
+        safeServoWrite(testAngles[i]);
+        Serial.printf("➡️  %d°\n", testAngles[i]);
+        delay(300);
+    }
     Serial.println("✅ Тест завершен");
 }
 
 void ServoManager::emergencyStop() {
-    Serial.println("🛑 АВАРИЙНАЯ ОСТАНОВКА!");
     safeServoWrite(90);
     ledcWrite(MOTOR_CHANNEL, 0);
 }
 
 void ServoManager::testSequence() {
-    Serial.println("🎯 ПОЛНЫЙ ТЕСТ...");
-    
-    if (!servoAttached) {
-        Serial.println("❌ Сервопривод не подключен");
-        return;
-    }
-    
-    // Тест сервопривода
-    int testAngles[] = {0, 45, 90, 135, 180, 90};
-    for (int i = 0; i < 6; i++) {
-        safeServoWrite(testAngles[i]);
-        Serial.printf("📍 Угол: %d°\n", testAngles[i]);
-        delay(400);
-    }
-    
-    Serial.println("✅ Тест завершен");
+    quickTest();
 }
 
 void ServoManager::setServoAngle(int angle) {
     if (!servoAttached) return;
     angle = constrain(angle, 0, 180);
     safeServoWrite(angle);
-    Serial.printf("🎯 Установлен угол: %d°\n", angle);
 }
 
 void ServoManager::setMotorSpeed(int speed) {
     speed = constrain(speed, 0, 255);
     ledcWrite(MOTOR_CHANNEL, speed);
-    Serial.printf("🚀 Установлена скорость: %d/255\n", speed);
 }
 
 bool ServoManager::isServoAttached() {
@@ -182,5 +151,6 @@ void ServoManager::diagnostic() {
     Serial.println("📊 ДИАГНОСТИКА SERVOMANAGER:");
     Serial.printf("   Сервопривод: %s\n", servoAttached ? "ПОДКЛЮЧЕН" : "ОТКЛЮЧЕН");
     Serial.printf("   Текущий угол: %d°\n", currentAngle);
-    Serial.printf("   Deadzone: %d\n", JOYSTICK_DEADZONE);
+    Serial.printf("   Нейтральное положение джойстика: %d\n", JOYSTICK_NEUTRAL);
+    Serial.printf("   Мертвая зона: %d\n", JOYSTICK_DEADZONE);
 }
