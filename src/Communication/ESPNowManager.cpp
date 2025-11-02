@@ -17,6 +17,10 @@ void ESPNowManager::begin() {
     
     esp_now_register_recv_cb(onDataReceived);
     
+    // Инициализация пина светодиода
+    pinMode(HardwareConfig::LED_PIN, OUTPUT);
+    digitalWrite(HardwareConfig::LED_PIN, LOW); // Изначально выключен
+    
     // Вывод MAC адреса для спаривания
     Serial.print("📡 MAC приемника: ");
     Serial.println(WiFi.macAddress());
@@ -49,6 +53,48 @@ bool ESPNowManager::addPeer(const uint8_t* macAddress) {
     }
 }
 
+void ESPNowManager::setConnectionStatus(bool connected) {
+    if (connectionActive != connected) {
+        connectionActive = connected;
+        if (connected) {
+            Serial.println("📶 Связь с пультом УСТАНОВЛЕНА");
+            digitalWrite(HardwareConfig::LED_PIN, HIGH); // Постоянно горит при связи
+        } else {
+            Serial.println("📶 Связь с пультом ПОТЕРЯНА");
+            digitalWrite(HardwareConfig::LED_PIN, LOW); // Выключаем при потере
+        }
+    }
+}
+
+void ESPNowManager::updateConnectionIndicator() {
+    // Если связь активна - светодиод постоянно горит, управление не нужно
+    if (connectionActive) {
+        return;
+    }
+    
+    // Если связи нет - мигаем каждые 500мс
+    unsigned long currentTime = millis();
+    if (currentTime - lastIndicatorUpdate > 500) {
+        indicatorState = !indicatorState;
+        digitalWrite(HardwareConfig::LED_PIN, indicatorState);
+        lastIndicatorUpdate = currentTime;
+    }
+}
+
+void ESPNowManager::updateConnection() {
+    const unsigned long CONNECTION_TIMEOUT = 2000; // Таймаут связи 2 секунды
+    
+    // Проверяем потерю связи только если она была активна
+    if (connectionActive) {
+        if (millis() - lastPacketTime > CONNECTION_TIMEOUT) {
+            setConnectionStatus(false);
+        }
+    }
+    
+    // Обновляем индикатор (для мигания при потере связи)
+    updateConnectionIndicator();
+}
+
 void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int len) {
     if (len != sizeof(ControlData)) {
         Serial.printf("❌ Неверный пакет: %d байт\n", len);
@@ -67,6 +113,12 @@ void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int 
     
     if (calculatedCRC != receivedData.crc) {
         return; // Тихий сброс пакета с ошибкой CRC
+    }
+    
+    // Обновляем время последнего пакета и статус связи
+    if (espNowInstance != nullptr) {
+        espNowInstance->lastPacketTime = millis();
+        espNowInstance->setConnectionStatus(true);
     }
     
     // Вызов callback функции

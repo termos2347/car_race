@@ -16,9 +16,12 @@ void onDataReceived(const ControlData& data) {
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("🎯 START PROGRAM");
+    Serial.println("🎯 START PROGRAM - WITH CONNECTION INDICATOR");
     
-    // Инициализация ServoManager
+    // Светодиод выключен во время тестирования
+    Serial.println("💡 LED OFF during testing");
+    
+    // Инициализация ServoManager (включает тест сервопривода)
     servoManager.begin();
 
     // Инициализация ESP-NOW
@@ -26,11 +29,13 @@ void setup() {
     espNowManager.registerCallback(onDataReceived);
     espNowManager.addPeer(transmitterMac);
     
-    Serial.println("✅ READY - ULTRA SIMPLE VERSION");
+    Serial.println("✅ READY - Waiting for transmitter connection...");
+    Serial.println("💡 LED will turn ON when connection established");
 }
 
 void loop() {
-    // АБСОЛЮТНО НИЧЕГО НЕ ДЕЛАЕМ В LOOP
-    // Всё обрабатывается в callback
-    delay(1000); // Просто чтобы не грузил процессор
+    // Обновляем состояние связи и индикацию
+    espNowManager.updateConnection();
+    
+    delay(100); // Небольшая задержка для стабильности
 }
