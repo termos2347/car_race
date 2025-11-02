@@ -17,4 +17,8 @@ struct HardwareConfig {
     static const uint8_t ELEVATOR_PIN = 12;  // Сервопривод руля высоты
     static const uint8_t MOTOR_PIN = 13;     // Двигатель (PWM)
     static const uint8_t LED_PIN = 2;        // Индикация
+    
+    // static const uint8_t RUDDER_PIN = 14;
+    // static const uint8_t AILERON_LEFT_PIN = 15;
+    // static const uint8_t AILERON_RIGHT_PIN = 16;
 };

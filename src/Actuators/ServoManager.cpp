@@ -9,7 +9,8 @@ void ServoManager::begin() {
     Serial.println("🚀 START ServoManager");
     
     // Инициализация сервопривода с настройками из .h
-    elevatorServo.attach(ELEVATOR_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    // Пин теперь берется из HardwareConfig
+    elevatorServo.attach(HardwareConfig::ELEVATOR_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
     
     // Запускаем тестовую последовательность
     testSequence();
@@ -18,7 +19,7 @@ void ServoManager::begin() {
     elevatorServo.write(SERVO_NEUTRAL_ANGLE);
     delay(500);
     
-    Serial.println("✅ Servo INIT OK");
+    Serial.println("✅ Servo INIT OK on pin " + String(HardwareConfig::ELEVATOR_PIN));
 }
 
 void ServoManager::testSequence() {
@@ -85,7 +86,6 @@ void ServoManager::update(const ControlData& data) {
     int y = data.yAxis1;
     
     // 2. Преобразуем в угол сервопривода с безопасными пределами из констант
-    //    Используем РАБОЧИЕ пределы (SERVO_MIN_ANGLE, SERVO_MAX_ANGLE)
     int angle = map(y, -512, 512, SERVO_MIN_ANGLE, SERVO_MAX_ANGLE);
     
     // 3. Ограничиваем используя константы класса
@@ -109,7 +109,7 @@ void ServoManager::update(const ControlData& data) {
         Serial.print(SERVO_TEST_MIN);
         Serial.print("-");
         Serial.print(SERVO_TEST_MAX);
-        Serial.println("]");
+        Serial.print("] ");
         lastPrint = millis();
     }
 }
