@@ -25,21 +25,21 @@ void ServoManager::testSequence() {
     Serial.println("🧪 START Servo Test Sequence");
     isTesting = true;
     
-    // Используем константы из класса для теста
+    // 1. Нейтральное положение
     Serial.println("➡️ Moving to NEUTRAL (" + String(SERVO_NEUTRAL_ANGLE) + "°)");
     elevatorServo.write(SERVO_NEUTRAL_ANGLE);
     delay(1000);
     
-    // 2. Плавное движение к минимальному углу
-    Serial.println("⬇️ Moving to MIN (" + String(SERVO_TEST_MIN) + "°)");
+    // 2. Плавное движение к минимальному углу ТЕСТА
+    Serial.println("⬇️ Moving to TEST MIN (" + String(SERVO_TEST_MIN) + "°)");
     for (int pos = SERVO_NEUTRAL_ANGLE; pos >= SERVO_TEST_MIN; pos -= 5) {
         elevatorServo.write(pos);
         delay(50);
     }
     delay(500);
     
-    // 3. Плавное движение к максимальному углу
-    Serial.println("⬆️ Moving to MAX (" + String(SERVO_TEST_MAX) + "°)");
+    // 3. Плавное движение к максимальному углу ТЕСТА
+    Serial.println("⬆️ Moving to TEST MAX (" + String(SERVO_TEST_MAX) + "°)");
     for (int pos = SERVO_TEST_MIN; pos <= SERVO_TEST_MAX; pos += 5) {
         elevatorServo.write(pos);
         delay(50);
@@ -54,12 +54,17 @@ void ServoManager::testSequence() {
     }
     delay(500);
     
-    // 5. Быстрая проверка отклика
+    // 5. Быстрая проверка отклика - ИСПОЛЬЗУЕМ ТЕ ЖЕ ЗНАЧЕНИЯ ТЕСТА!
     Serial.println("⚡ Quick response test");
-    elevatorServo.write(SERVO_NEUTRAL_ANGLE - 20);
+    Serial.println("   Moving to TEST MIN: " + String(SERVO_TEST_MIN) + "°");
+    elevatorServo.write(SERVO_TEST_MIN);
     delay(300);
-    elevatorServo.write(SERVO_NEUTRAL_ANGLE + 20);
+    
+    Serial.println("   Moving to TEST MAX: " + String(SERVO_TEST_MAX) + "°");
+    elevatorServo.write(SERVO_TEST_MAX);
     delay(300);
+    
+    Serial.println("   Returning to NEUTRAL: " + String(SERVO_NEUTRAL_ANGLE) + "°");
     elevatorServo.write(SERVO_NEUTRAL_ANGLE);
     delay(300);
     
@@ -80,6 +85,7 @@ void ServoManager::update(const ControlData& data) {
     int y = data.yAxis1;
     
     // 2. Преобразуем в угол сервопривода с безопасными пределами из констант
+    //    Используем РАБОЧИЕ пределы (SERVO_MIN_ANGLE, SERVO_MAX_ANGLE)
     int angle = map(y, -512, 512, SERVO_MIN_ANGLE, SERVO_MAX_ANGLE);
     
     // 3. Ограничиваем используя константы класса
@@ -95,10 +101,14 @@ void ServoManager::update(const ControlData& data) {
         Serial.print(y);
         Serial.print(" -> 📐 ");
         Serial.print(angle);
-        Serial.print("° [");
+        Serial.print("° [WORKING: ");
         Serial.print(SERVO_MIN_ANGLE);
         Serial.print("-");
         Serial.print(SERVO_MAX_ANGLE);
+        Serial.print("] [TEST: ");
+        Serial.print(SERVO_TEST_MIN);
+        Serial.print("-");
+        Serial.print(SERVO_TEST_MAX);
         Serial.println("]");
         lastPrint = millis();
     }

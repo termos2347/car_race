@@ -18,13 +18,13 @@ private:
     static const uint8_t MOTOR_PIN = 13;
     
     // ⚙️ НАСТРОЙКИ СЕРВОПРИВОДА - легко менять здесь!
-    static const int SERVO_MIN_ANGLE = 60;    // Минимальный угол (безопасность)
-    static const int SERVO_MAX_ANGLE = 120;   // Максимальный угол (безопасность) 
+    static const int SERVO_MIN_ANGLE = 0;      // Минимальный угол для РАБОТЫ
+    static const int SERVO_MAX_ANGLE = 180;    // Максимальный угол для РАБОТЫ
     static const int SERVO_NEUTRAL_ANGLE = 90; // Нейтральное положение
-    static const int SERVO_TEST_MIN = 60;     // Мин. угол для теста
-    static const int SERVO_TEST_MAX = 120;    // Макс. угол для теста
+    static const int SERVO_TEST_MIN = 0;       // Мин. угол для теста (должно совпадать с SERVO_MIN_ANGLE если нужны одинаковые)
+    static const int SERVO_TEST_MAX = 180;     // Макс. угол для теста (должно совпадать с SERVO_MAX_ANGLE если нужны одинаковые)
     
-    // Настройки PWM для сервопривода (если нужно настроить)
+    // Настройки PWM для сервопривода
     static const int SERVO_MIN_PULSE = 500;   // Минимальная ширина импульса
     static const int SERVO_MAX_PULSE = 2400;  // Максимальная ширина импульса
 };
