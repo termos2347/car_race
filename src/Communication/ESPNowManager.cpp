@@ -25,6 +25,14 @@ void ESPNowManager::begin() {
     Serial.print("📡 MAC приемника: ");
     Serial.println(WiFi.macAddress());
     
+    // Вывод MAC адреса передатчика
+    Serial.print("📡 MAC передатчика: ");
+    for (int i = 0; i < 6; i++) {
+        Serial.print(transmitterMac[i], HEX);
+        if (i < 5) Serial.print(":");
+    }
+    Serial.println();
+    
     Serial.println("✅ ESP-NOW инициализирован");
 }
 
@@ -33,16 +41,16 @@ void ESPNowManager::registerCallback(DataReceivedCallback callback) {
     Serial.println("✅ Callback зарегистрирован в ESPNowManager");
 }
 
-bool ESPNowManager::addPeer(const uint8_t* macAddress) {
+bool ESPNowManager::addPeer() {
     esp_now_peer_info_t peerInfo = {};
-    memcpy(peerInfo.peer_addr, macAddress, 6);
+    memcpy(peerInfo.peer_addr, transmitterMac, 6);
     peerInfo.channel = 0;
     peerInfo.encrypt = false;
     
     if (esp_now_add_peer(&peerInfo) == ESP_OK) {
         Serial.print("✅ Peer добавлен: ");
         for (int i = 0; i < 6; i++) {
-            Serial.print(macAddress[i], HEX);
+            Serial.print(transmitterMac[i], HEX);
             if (i < 5) Serial.print(":");
         }
         Serial.println();

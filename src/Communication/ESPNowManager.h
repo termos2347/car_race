@@ -9,8 +9,7 @@ public:
     
     void begin();
     void registerCallback(DataReceivedCallback callback);
-    bool addPeer(const uint8_t* macAddress);
-    void sendDiagnostic();
+    bool addPeer();
     
     // Методы для управления индикацией связи
     void setConnectionStatus(bool connected);
@@ -29,6 +28,10 @@ private:
     unsigned long lastPacketTime = 0;
     unsigned long lastIndicatorUpdate = 0;
     bool indicatorState = false;
+    
+    // MAC-адрес передатчика теперь здесь
+    const uint8_t transmitterMac[6] = {0x14, 0x33, 0x5C, 0x37, 0x82, 0x58};
+    // ==================================
     
     static void onDataReceived(const uint8_t* mac, const uint8_t* data, int len);
     bool validateCRC(const ControlData& data);

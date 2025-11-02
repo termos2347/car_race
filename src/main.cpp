@@ -6,8 +6,6 @@
 ServoManager servoManager;
 ESPNowManager& espNowManager = ESPNowManager::getInstance();
 
-const uint8_t transmitterMac[] = {0x14, 0x33, 0x5C, 0x37, 0x82, 0x58};
-
 void onDataReceived(const ControlData& data) {
     // ПРОСТО ВЫЗЫВАЕМ update С ДАННЫМИ
     servoManager.update(data);
@@ -16,7 +14,7 @@ void onDataReceived(const ControlData& data) {
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("🎯 START PROGRAM - WITH CONNECTION INDICATOR");
+    Serial.println("🎯 START PROGRAM - CLEAN ARCHITECTURE");
     
     // Светодиод выключен во время тестирования
     Serial.println("💡 LED OFF during testing");
@@ -27,7 +25,7 @@ void setup() {
     // Инициализация ESP-NOW
     espNowManager.begin();
     espNowManager.registerCallback(onDataReceived);
-    espNowManager.addPeer(transmitterMac);
+    espNowManager.addPeer(); // Теперь без параметров
     
     Serial.println("✅ READY - Waiting for transmitter connection...");
     Serial.println("💡 LED will turn ON when connection established");

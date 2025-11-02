@@ -109,7 +109,7 @@ void ServoManager::update(const ControlData& data) {
         Serial.print(SERVO_TEST_MIN);
         Serial.print("-");
         Serial.print(SERVO_TEST_MAX);
-        Serial.print("] ");
+        Serial.println("]");
         lastPrint = millis();
     }
 }
