@@ -7,25 +7,25 @@ ServoManager servoManager;
 ESPNowManager& espNowManager = ESPNowManager::getInstance();
 
 void onDataReceived(const ControlData& data) {
-    // ПРОСТО ВЫЗЫВАЕМ update С ДАННЫМИ
+    // Передаем данные в ServoManager
     servoManager.update(data);
 }
 
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("🎯 START PROGRAM - CLEAN ARCHITECTURE");
+    Serial.println("🎯 START PROGRAM - MULTI-SERVO CONTROL");
     
     // Светодиод выключен во время тестирования
     Serial.println("💡 LED OFF during testing");
     
-    // Инициализация ServoManager (включает тест сервопривода)
+    // Инициализация ServoManager (включает тест сервоприводов)
     servoManager.begin();
 
     // Инициализация ESP-NOW
     espNowManager.begin();
     espNowManager.registerCallback(onDataReceived);
-    espNowManager.addPeer(); // Теперь без параметров
+    espNowManager.addPeer();
     
     Serial.println("✅ READY - Waiting for transmitter connection...");
     Serial.println("💡 LED will turn ON when connection established");

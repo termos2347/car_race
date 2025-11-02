@@ -1,6 +1,7 @@
 #pragma once
 #include <ESP32Servo.h>
 #include "Core/Types.h"
+#include "ServoGroup.h"
 
 class ServoManager {
 public:
@@ -10,20 +11,28 @@ public:
     void testSequence();
     
 private:
-    Servo elevatorServo;
+    // Сервоприводы управления полетом
+    ServoGroup elevatorServo;     // Руль высоты
+    ServoGroup rudderServo;       // Руль направления
+    ServoGroup leftAileronServo;  // Левый элерон
+    ServoGroup rightAileronServo; // Правый элерон
+    
     bool isTesting = false;
     
-    // ⚙️ НАСТРОЙКИ СЕРВОПРИВОДА - легко менять здесь!
-    // Пины теперь берутся из HardwareConfig в Types.h
-    static const int SERVO_MIN_ANGLE = 0;      // Минимальный угол для РАБОТЫ
-    static const int SERVO_MAX_ANGLE = 180;    // Максимальный угол для РАБОТЫ
-    static const int SERVO_NEUTRAL_ANGLE = 90; // Нейтральное положение
+    // Настройки для каждого сервопривода
+    static const int ELEVATOR_MIN = 0;
+    static const int ELEVATOR_MAX = 180;
+    static const int ELEVATOR_NEUTRAL = 90;
     
-    // ⚡ НАСТРОЙКИ ТЕСТИРОВАНИЯ - используем одинаковые значения для всего теста!
-    static const int SERVO_TEST_MIN = 0;       // Мин. угол для теста
-    static const int SERVO_TEST_MAX = 180;     // Макс. угол для теста
+    static const int RUDDER_MIN = 0;
+    static const int RUDDER_MAX = 180;
+    static const int RUDDER_NEUTRAL = 90;
     
-    // Настройки PWM для сервопривода
-    static const int SERVO_MIN_PULSE = 500;   // Минимальная ширина импульса
-    static const int SERVO_MAX_PULSE = 2400;  // Максимальная ширина импульса
+    // Элероны работают в противофазе
+    static const int AILERON_MIN = 0;
+    static const int AILERON_MAX = 180;
+    static const int AILERON_NEUTRAL = 90;
+    
+    // Вспомогательные методы для управления элеронами
+    void updateAilerons(int rollValue);
 };
