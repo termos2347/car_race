@@ -13,7 +13,7 @@ struct ControlData {
 };
 
 struct HardwareConfig {
-    // Основные пины для самолета - используем указанные пины
+    // Основные пины для самолета
     static const uint8_t ELEVATOR_PIN = 13;      // Сервопривод руля высоты
     static const uint8_t RUDDER_PIN = 14;        // Сервопривод руля направления
     static const uint8_t LEFT_AILERON_PIN = 27;  // Левый элерон
