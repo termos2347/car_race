@@ -8,6 +8,9 @@ public:
     void begin();
     void write(int angle);
     void testSequence();
+    void testToNeutral();
+    void testToMin();
+    void testToMax();
     const char* getName() const { return name; }
     
 private:

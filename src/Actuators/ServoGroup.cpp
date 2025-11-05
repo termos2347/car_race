@@ -20,40 +20,35 @@ void ServoGroup::write(int angle) {
     servo.write(angle);
 }
 
+void ServoGroup::testToNeutral() {
+    servo.write(neutralAngle);
+}
+
+void ServoGroup::testToMin() {
+    servo.write(minAngle);
+}
+
+void ServoGroup::testToMax() {
+    servo.write(maxAngle);
+}
+
 void ServoGroup::testSequence() {
     isTesting = true;
-    Serial.print("🧪 TEST ");
-    Serial.println(name);
     
     // Нейтральное положение
-    Serial.print("➡️ ");
-    Serial.print(name);
-    Serial.print(" NEUTRAL (");
-    Serial.print(neutralAngle);
-    Serial.println("°)");
-    servo.write(neutralAngle);
+    testToNeutral();
     delay(1000);
     
     // Минимальный угол
-    Serial.print("⬇️ ");
-    Serial.print(name);
-    Serial.print(" MIN (");
-    Serial.print(minAngle);
-    Serial.println("°)");
-    servo.write(minAngle);
+    testToMin();
     delay(500);
     
     // Максимальный угол
-    Serial.print("⬆️ ");
-    Serial.print(name);
-    Serial.print(" MAX (");
-    Serial.print(maxAngle);
-    Serial.println("°)");
-    servo.write(maxAngle);
+    testToMax();
     delay(500);
     
     // Возврат в нейтральное положение
-    servo.write(neutralAngle);
+    testToNeutral();
     delay(500);
     
     isTesting = false;

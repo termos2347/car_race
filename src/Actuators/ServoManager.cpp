@@ -25,10 +25,10 @@ void ServoManager::begin() {
     Serial.println("   - FLAPS: 33");
     Serial.println("   - AUX1: 32");
     Serial.println("   - AUX2: 16");
-    Serial.println("   - AUX3: 25");           // НОВЫЙ
-    Serial.println("   - MOTOR: 17");          // ОБНОВЛЕННЫЙ
+    Serial.println("   - AUX3: 25");
+    Serial.println("   - MOTOR: 17");
     
-    delay(1000); // Задержка для стабильности
+    delay(1000);
 
     // Инициализация всех сервоприводов
     elevatorServo.begin();
@@ -38,7 +38,7 @@ void ServoManager::begin() {
     flapsServo.begin();
     aux1Servo.begin();
     aux2Servo.begin();
-    aux3Servo.begin();                         // НОВЫЙ
+    aux3Servo.begin();
     motorServo.begin();
     
     // Запускаем тестовую последовательность
@@ -51,43 +51,57 @@ void ServoManager::testSequence() {
     Serial.println("🧪 START Complete Servo Test Sequence");
     isTesting = true;
     
-    // Тестируем каждый сервопривод по очереди
-    elevatorServo.testSequence();
-    rudderServo.testSequence();
-    leftAileronServo.testSequence();
-    rightAileronServo.testSequence();
-    flapsServo.testSequence();
-    aux1Servo.testSequence();
-    aux2Servo.testSequence();
-    aux3Servo.testSequence();                  // НОВЫЙ
-    motorServo.testSequence();
+    // === ТЕСТ 1: Все в нейтральное положение ===
+    Serial.println("🎯 TEST 1: ALL SERVOS TO NEUTRAL");
+    elevatorServo.testToNeutral();
+    rudderServo.testToNeutral();
+    leftAileronServo.testToNeutral();
+    rightAileronServo.testToNeutral();
+    flapsServo.testToNeutral();
+    aux1Servo.testToNeutral();
+    aux2Servo.testToNeutral();
+    aux3Servo.testToNeutral();
+    motorServo.testToNeutral();
+    delay(2000);
     
-    // Тест работы элеронов в противофазе
-    Serial.println("🔄 Testing aileron synchronization");
+    // === ТЕСТ 2: Все в минимальное положение ===
+    Serial.println("🎯 TEST 2: ALL SERVOS TO MINIMUM");
+    elevatorServo.testToMin();
+    rudderServo.testToMin();
+    leftAileronServo.testToMin();
+    rightAileronServo.testToMin();
+    flapsServo.testToMin();
+    aux1Servo.testToMin();
+    aux2Servo.testToMin();
+    aux3Servo.testToMin();
+    motorServo.testToMin();
+    delay(2000);
     
-    // Левый крен
-    Serial.println("🔄 LEFT ROLL - Left up, Right down");
-    leftAileronServo.write(AILERON_MAX);
-    rightAileronServo.write(AILERON_MIN);
-    delay(1000);
+    // === ТЕСТ 3: Все в максимальное положение ===
+    Serial.println("🎯 TEST 3: ALL SERVOS TO MAXIMUM");
+    elevatorServo.testToMax();
+    rudderServo.testToMax();
+    leftAileronServo.testToMax();
+    rightAileronServo.testToMax();
+    flapsServo.testToMax();
+    aux1Servo.testToMax();
+    aux2Servo.testToMax();
+    aux3Servo.testToMax();
+    motorServo.testToMax();
+    delay(2000);
     
-    // Правый крен
-    Serial.println("🔄 RIGHT ROLL - Left down, Right up");
-    leftAileronServo.write(AILERON_MIN);
-    rightAileronServo.write(AILERON_MAX);
-    delay(1000);
-    
-    // Нейтральное положение всех сервоприводов
-    Serial.println("🔄 NEUTRAL - All servos centered");
-    leftAileronServo.write(AILERON_NEUTRAL);
-    rightAileronServo.write(AILERON_NEUTRAL);
-    elevatorServo.write(ELEVATOR_NEUTRAL);
-    rudderServo.write(RUDDER_NEUTRAL);
-    flapsServo.write(FLAPS_NEUTRAL);
-    aux1Servo.write(AUX1_NEUTRAL);
-    aux2Servo.write(AUX2_NEUTRAL);
-    aux3Servo.write(AUX3_NEUTRAL);             // НОВЫЙ
-    delay(1000);
+    // === ТЕСТ 4: Возврат в нейтральное ===
+    Serial.println("🎯 TEST 4: ALL SERVOS BACK TO NEUTRAL");
+    elevatorServo.testToNeutral();
+    rudderServo.testToNeutral();
+    leftAileronServo.testToNeutral();
+    rightAileronServo.testToNeutral();
+    flapsServo.testToNeutral();
+    aux1Servo.testToNeutral();
+    aux2Servo.testToNeutral();
+    aux3Servo.testToNeutral();
+    motorServo.testToNeutral();
+    delay(2000);
     
     Serial.println("✅ ALL Servo Tests COMPLETE");
     isTesting = false;
@@ -103,7 +117,6 @@ void ServoManager::updateAilerons(int rollValue) {
 }
 
 void ServoManager::updateFlaps(int flapsValue) {
-    // Пока просто демонстрация - можно настроить под свои нужды
     if (flapsValue < -300) {
         flapsServo.write(FLAPS_MIN);      // Закрылки убраны
     } else if (flapsValue > 300) {
@@ -154,15 +167,15 @@ void ServoManager::update(const ControlData& data) {
     updateFlaps(data.yAxis2);
     updateAuxServos(data);
     
-    // Выводим в Serial для отладки (редко, чтобы не спамить)
+    // Выводим в Serial для отладки
     static unsigned long lastPrint = 0;
     if (millis() - lastPrint > 500) {
         // Вычисляем текущие углы для отладки
         int leftAileronAngle = map(data.xAxis2, -512, 512, AILERON_MAX, AILERON_MIN);
         int rightAileronAngle = map(data.xAxis2, -512, 512, AILERON_MIN, AILERON_MAX);
-        int aux3Angle = map(data.xAxis2, -512, 512, AUX3_MIN, AUX3_MAX); // НОВЫЙ
+        int aux3Angle = map(data.xAxis2, -512, 512, AUX3_MIN, AUX3_MAX);
         
-        // Определяем статус закрылков на основе значения оси Y второго джойстика
+        // Определяем статус закрылков
         const char* flapsStatus = "MID";
         if (data.yAxis2 < -300) {
             flapsStatus = "UP";
@@ -181,7 +194,7 @@ void ServoManager::update(const ControlData& data) {
         Serial.print("° Flaps:");
         Serial.print(flapsStatus);
         Serial.print(" AUX3:");
-        Serial.print(aux3Angle);  // НОВЫЙ ВЫВОД
+        Serial.print(aux3Angle);
         Serial.print("° B1:");
         Serial.print(data.button1 ? "ON" : "OFF");
         Serial.print(" B2:");
