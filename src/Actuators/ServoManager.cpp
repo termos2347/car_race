@@ -9,7 +9,8 @@ ServoManager::ServoManager()
       rightAileronServo(HardwareConfig::RIGHT_AILERON_PIN, AILERON_MIN, AILERON_MAX, AILERON_NEUTRAL, "RIGHT_AILERON"),
       flapsServo(HardwareConfig::FLAPS_PIN, FLAPS_MIN, FLAPS_MAX, FLAPS_NEUTRAL, "FLAPS"),
       aux1Servo(HardwareConfig::AUX1_PIN, AUX1_MIN, AUX1_MAX, AUX1_NEUTRAL, "AUX1"),
-      aux2Servo(HardwareConfig::AUX2_PIN, AUX2_MIN, AUX2_MAX, AUX2_NEUTRAL, "AUX2") {
+      aux2Servo(HardwareConfig::AUX2_PIN, AUX2_MIN, AUX2_MAX, AUX2_NEUTRAL, "AUX2"),
+      motorServo(HardwareConfig::MOTOR_PIN, MOTOR_MIN, MOTOR_MAX, MOTOR_NEUTRAL, "MOTOR") {
 }
 
 void ServoManager::begin() {
@@ -23,6 +24,8 @@ void ServoManager::begin() {
     Serial.println("   - AUX1: 32");
     Serial.println("   - AUX2: 16");
     
+    delay(1000); // Задержка для стабильности
+
     // Инициализация всех сервоприводов
     elevatorServo.begin();
     rudderServo.begin();
@@ -31,6 +34,7 @@ void ServoManager::begin() {
     flapsServo.begin();
     aux1Servo.begin();
     aux2Servo.begin();
+    motorServo.begin();
     
     // Запускаем тестовую последовательность
     testSequence();
@@ -50,6 +54,7 @@ void ServoManager::testSequence() {
     flapsServo.testSequence();
     aux1Servo.testSequence();
     aux2Servo.testSequence();
+    motorServo.testSequence();
     
     // Тест работы элеронов в противофазе
     Serial.println("🔄 Testing aileron synchronization");
@@ -91,7 +96,6 @@ void ServoManager::updateAilerons(int rollValue) {
 }
 
 void ServoManager::updateFlaps(int flapsValue) {
-    // Управление закрылками (можно привязать к кнопке или отдельной оси)
     // Пока просто демонстрация - можно настроить под свои нужды
     if (flapsValue < -300) {
         flapsServo.write(FLAPS_MIN);      // Закрылки убраны
@@ -133,6 +137,10 @@ void ServoManager::update(const ControlData& data) {
     
     int rudderAngle = map(data.xAxis1, -512, 512, RUDDER_MIN, RUDDER_MAX);
     rudderServo.write(rudderAngle);
+
+    // Управление мотором (ось Y второго джойстика)
+    int motorSpeed = map(data.yAxis2, -512, 512, MOTOR_MIN, MOTOR_MAX);
+    motorServo.write(motorSpeed);
     
     updateAilerons(data.xAxis2);
     updateFlaps(data.yAxis2);
