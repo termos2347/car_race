@@ -20,5 +20,5 @@ private:
     bool isTesting = false;
     
     static const int SERVO_MIN_PULSE = 500;
-    static const int SERVO_MAX_PULSE = 2400;
+    static const int SERVO_MAX_PULSE = 2500;
 };

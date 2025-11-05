@@ -22,6 +22,7 @@ private:
     ServoGroup flapsServo;          // Закрылки
     ServoGroup aux1Servo;           // Дополнительный сервопривод 1
     ServoGroup aux2Servo;           // Дополнительный сервопривод 2
+    ServoGroup aux3Servo;           // НОВЫЙ сервопривод
     
     bool isTesting = false;
     
@@ -51,6 +52,10 @@ private:
     static const int AUX2_MIN = 0;
     static const int AUX2_MAX = 180;
     static const int AUX2_NEUTRAL = 90;
+
+    static const int AUX3_MIN = 0;
+    static const int AUX3_MAX = 180;
+    static const int AUX3_NEUTRAL = 90;
 
     static const int MOTOR_MIN = 0;
     static const int MOTOR_MAX = 180;

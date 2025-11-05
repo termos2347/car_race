@@ -10,7 +10,9 @@ ServoManager::ServoManager()
       flapsServo(HardwareConfig::FLAPS_PIN, FLAPS_MIN, FLAPS_MAX, FLAPS_NEUTRAL, "FLAPS"),
       aux1Servo(HardwareConfig::AUX1_PIN, AUX1_MIN, AUX1_MAX, AUX1_NEUTRAL, "AUX1"),
       aux2Servo(HardwareConfig::AUX2_PIN, AUX2_MIN, AUX2_MAX, AUX2_NEUTRAL, "AUX2"),
-      motorServo(HardwareConfig::MOTOR_PIN, MOTOR_MIN, MOTOR_MAX, MOTOR_NEUTRAL, "MOTOR") {
+      aux3Servo(HardwareConfig::AUX3_PIN, AUX3_MIN, AUX3_MAX, AUX3_NEUTRAL, "AUX3"),
+      motorServo(HardwareConfig::MOTOR_PIN, MOTOR_MIN, MOTOR_MAX, MOTOR_NEUTRAL, "MOTOR")
+{
 }
 
 void ServoManager::begin() {
@@ -23,6 +25,8 @@ void ServoManager::begin() {
     Serial.println("   - FLAPS: 33");
     Serial.println("   - AUX1: 32");
     Serial.println("   - AUX2: 16");
+    Serial.println("   - AUX3: 25");           // НОВЫЙ
+    Serial.println("   - MOTOR: 17");          // ОБНОВЛЕННЫЙ
     
     delay(1000); // Задержка для стабильности
 
@@ -34,6 +38,7 @@ void ServoManager::begin() {
     flapsServo.begin();
     aux1Servo.begin();
     aux2Servo.begin();
+    aux3Servo.begin();                         // НОВЫЙ
     motorServo.begin();
     
     // Запускаем тестовую последовательность
@@ -54,6 +59,7 @@ void ServoManager::testSequence() {
     flapsServo.testSequence();
     aux1Servo.testSequence();
     aux2Servo.testSequence();
+    aux3Servo.testSequence();                  // НОВЫЙ
     motorServo.testSequence();
     
     // Тест работы элеронов в противофазе
@@ -80,6 +86,7 @@ void ServoManager::testSequence() {
     flapsServo.write(FLAPS_NEUTRAL);
     aux1Servo.write(AUX1_NEUTRAL);
     aux2Servo.write(AUX2_NEUTRAL);
+    aux3Servo.write(AUX3_NEUTRAL);             // НОВЫЙ
     delay(1000);
     
     Serial.println("✅ ALL Servo Tests COMPLETE");
@@ -107,22 +114,23 @@ void ServoManager::updateFlaps(int flapsValue) {
 }
 
 void ServoManager::updateAuxServos(const ControlData& data) {
-    // Дополнительные сервоприводы - можно настроить под конкретные задачи
-    // Например: управление шасси, триммером, камерой и т.д.
-    
-    // AUX1 - пример: управление по кнопке 1
+    // AUX1 - управление по кнопке 1
     if (data.button1) {
         aux1Servo.write(AUX1_MAX);
     } else {
         aux1Servo.write(AUX1_MIN);
     }
     
-    // AUX2 - пример: управление по кнопке 2
+    // AUX2 - управление по кнопке 2
     if (data.button2) {
         aux2Servo.write(AUX2_MAX);
     } else {
         aux2Servo.write(AUX2_MIN);
     }
+    
+    // AUX3 - аналоговое управление (ось X второго джойстика)
+    int aux3Angle = map(data.xAxis2, -512, 512, AUX3_MIN, AUX3_MAX);
+    aux3Servo.write(aux3Angle);
 }
 
 void ServoManager::update(const ControlData& data) {
@@ -152,6 +160,7 @@ void ServoManager::update(const ControlData& data) {
         // Вычисляем текущие углы для отладки
         int leftAileronAngle = map(data.xAxis2, -512, 512, AILERON_MAX, AILERON_MIN);
         int rightAileronAngle = map(data.xAxis2, -512, 512, AILERON_MIN, AILERON_MAX);
+        int aux3Angle = map(data.xAxis2, -512, 512, AUX3_MIN, AUX3_MAX); // НОВЫЙ
         
         // Определяем статус закрылков на основе значения оси Y второго джойстика
         const char* flapsStatus = "MID";
@@ -171,7 +180,9 @@ void ServoManager::update(const ControlData& data) {
         Serial.print(rightAileronAngle);
         Serial.print("° Flaps:");
         Serial.print(flapsStatus);
-        Serial.print(" B1:");
+        Serial.print(" AUX3:");
+        Serial.print(aux3Angle);  // НОВЫЙ ВЫВОД
+        Serial.print("° B1:");
         Serial.print(data.button1 ? "ON" : "OFF");
         Serial.print(" B2:");
         Serial.print(data.button2 ? "ON" : "OFF");
