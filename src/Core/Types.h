@@ -18,7 +18,7 @@ struct HardwareConfig {
     static const uint8_t RUDDER_PIN = 14;        // Сервопривод руля направления
     static const uint8_t LEFT_AILERON_PIN = 27;  // Левый элерон
     static const uint8_t RIGHT_AILERON_PIN = 26; // Правый элерон
-    static const uint8_t MOTOR_PIN = 17;         // Двигатель (PWM) - ПЕРЕМЕЩЕН НА 17
+    static const uint8_t MOTOR_PIN = 17;         // Двигатель (PWM)
     static const uint8_t FLAPS_PIN = 33;         // Закрылки (дополнительный сервопривод)
     static const uint8_t AUX1_PIN = 32;          // Дополнительный сервопривод 1
     static const uint8_t AUX2_PIN = 16;          // Дополнительный сервопривод 2

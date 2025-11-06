@@ -12,42 +12,62 @@ void ServoGroup::begin() {
     
     servo.attach(pin, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
     servo.write(neutralAngle);
+    currentAngle = neutralAngle;
     delay(500);
 }
 
 void ServoGroup::write(int angle) {
     angle = constrain(angle, minAngle, maxAngle);
     servo.write(angle);
+    currentAngle = angle;
+}
+
+void ServoGroup::writeSmooth(int targetAngle, int movementTime) {
+    targetAngle = constrain(targetAngle, minAngle, maxAngle);
+    
+    if (targetAngle == currentAngle) {
+        return;
+    }
+    
+    int angleDifference = abs(targetAngle - currentAngle);
+    int steps = angleDifference;
+    int stepDelay = movementTime / steps;
+    
+    stepDelay = constrain(stepDelay, 1, 100);
+    
+    int step = (targetAngle > currentAngle) ? 1 : -1;
+    
+    for (int i = 0; i < steps; i++) {
+        currentAngle += step;
+        servo.write(currentAngle);
+        delay(stepDelay);
+    }
 }
 
 void ServoGroup::testToNeutral() {
-    servo.write(neutralAngle);
+    writeSmooth(neutralAngle, 1000);
 }
 
 void ServoGroup::testToMin() {
-    servo.write(minAngle);
+    writeSmooth(minAngle, 1000);
 }
 
 void ServoGroup::testToMax() {
-    servo.write(maxAngle);
+    writeSmooth(maxAngle, 1000);
 }
 
 void ServoGroup::testSequence() {
     isTesting = true;
     
-    // Нейтральное положение
     testToNeutral();
     delay(1000);
     
-    // Минимальный угол
     testToMin();
     delay(500);
     
-    // Максимальный угол
     testToMax();
     delay(500);
     
-    // Возврат в нейтральное положение
     testToNeutral();
     delay(500);
     
