@@ -8,12 +8,12 @@
 // ============================================================================
 
 // Режим работы сервоприводов (true - плавное движение, false - прямое)
-#define SMOOTH_SERVO_MOVEMENT true
+#define SMOOTH_SERVO_MOVEMENT false
 
 // Скорости движения сервоприводов (время полного хода 0-180° в миллисекундах)
 #define SERVO_SPEED_FAST     100    // Элероны, рули - быстро
 #define SERVO_SPEED_MEDIUM   200    // Основные управления  
-#define SERVO_SPEED_SLOW     500    // Закрылки, AUX - медленно
+#define SERVO_SPEED_SLOW     500    // Закрылки - медленно
 #define SERVO_SPEED_TEST    1000    // Тестирование - очень медленно
 
 // ============================================================================
@@ -33,9 +33,7 @@
 #define TEST_AILERONS     true
 #define TEST_FLAPS        true
 #define TEST_MOTOR        true
-#define TEST_AUX1         true  // Временно отключено для экономии питания
-#define TEST_AUX2         true
-#define TEST_AUX3         true
+
 
 // ============================================================================
 // НАСТРОЙКИ УПРАВЛЕНИЯ
@@ -58,49 +56,57 @@ public:
     
 private:
     // Основные сервоприводы управления полетом
-    ServoGroup elevatorServo;       // Руль высоты
-    ServoGroup rudderServo;         // Руль направления
-    ServoGroup leftAileronServo;    // Левый элерон
-    ServoGroup rightAileronServo;   // Правый элерон
-    
-    // Дополнительные сервоприводы
-    ServoGroup motorServo;          // Двигатель
-    ServoGroup flapsServo;          // Закрылки
-    ServoGroup aux1Servo;           // Дополнительный сервопривод 1
-    ServoGroup aux2Servo;           // Дополнительный сервопривод 2
-    ServoGroup aux3Servo;           // НОВЫЙ сервопривод
+    ServoGroup L_elevatorServo;       // Левый руль высоты
+    ServoGroup R_elevatorServo;       // Правый руль высоты
+    ServoGroup L_rudderServo;         // Левый руль направления
+    ServoGroup R_rudderServo;         // Правый руль направления
+
+    ServoGroup L_aileronServo;        // Левый элерon
+    ServoGroup R_aileronServo;        // Правый элерон
+    ServoGroup L_flapServo;           // Левый закрылок
+    ServoGroup R_flapServo;           // Правый закрылок
+    ServoGroup motorServo;            // Двигатель
     
     bool isTesting = false;
     
     // Настройки углов сервоприводов
-    static const int ELEVATOR_MIN = 0;
-    static const int ELEVATOR_MAX = 180;
-    static const int ELEVATOR_NEUTRAL = 90;
-    
-    static const int RUDDER_MIN = 0;
-    static const int RUDDER_MAX = 180;
-    static const int RUDDER_NEUTRAL = 90;
-    
-    static const int AILERON_MIN = 0;
-    static const int AILERON_MAX = 180;
-    static const int AILERON_NEUTRAL = 90;
-    
-    static const int FLAPS_MIN = 0;
-    static const int FLAPS_MAX = 180;
-    static const int FLAPS_NEUTRAL = 90;
-    
-    static const int AUX1_MIN = 0;
-    static const int AUX1_MAX = 180;
-    static const int AUX1_NEUTRAL = 90;
-    
-    static const int AUX2_MIN = 0;
-    static const int AUX2_MAX = 180;
-    static const int AUX2_NEUTRAL = 90;
+    // ELEVATOR
+    static const int L_ELEVATOR_MIN = 0;
+    static const int L_ELEVATOR_MAX = 180;
+    static const int L_ELEVATOR_NEUTRAL = 90;
 
-    static const int AUX3_MIN = 0;
-    static const int AUX3_MAX = 180;
-    static const int AUX3_NEUTRAL = 90;
+    static const int R_ELEVATOR_MIN = 0;
+    static const int R_ELEVATOR_MAX = 180;
+    static const int R_ELEVATOR_NEUTRAL = 90;
+    
+    //RUDDER
+    static const int L_RUDDER_MIN = 0;
+    static const int L_RUDDER_MAX = 180;
+    static const int L_RUDDER_NEUTRAL = 90;
+    
+    static const int R_RUDDER_MIN = 0;
+    static const int R_RUDDER_MAX = 180;
+    static const int R_RUDDER_NEUTRAL = 90;
+    
+    // AILERON
+    static const int L_AILERON_MIN = 0;
+    static const int L_AILERON_MAX = 180;
+    static const int L_AILERON_NEUTRAL = 90;
 
+    static const int R_AILERON_MIN = 0;
+    static const int R_AILERON_MAX = 180;
+    static const int R_AILERON_NEUTRAL = 90;
+    
+    // FLAPS
+    static const int L_FLAPS_MIN = 0;
+    static const int L_FLAPS_MAX = 180;
+    static const int L_FLAPS_NEUTRAL = 90;
+    
+    static const int R_FLAPS_MIN = 0;
+    static const int R_FLAPS_MAX = 180;
+    static const int R_FLAPS_NEUTRAL = 90;
+
+    // MOTOR
     static const int MOTOR_MIN = 0;
     static const int MOTOR_MAX = 180;
     static const int MOTOR_NEUTRAL = 0;
@@ -110,11 +116,9 @@ private:
     void updateAileronsSmooth(int rollValue);
     void updateFlaps(int flapsValue);
     void updateFlapsSmooth(int flapsValue);
-    void updateAuxServos(const ControlData& data);
-    void updateAuxServosSmooth(const ControlData& data);
     void applyDeadZone(int16_t& axisValue, int deadZone);
     
     // Новый метод для одновременного движения
-    void moveAllServos(int elevator, int rudder, int leftAileron, int rightAileron, 
-                      int flaps, int motor, int aux1, int aux2, int aux3);
+    void moveAllServos(int L_elevator, int R_elevator, int L_rudder, int R_rudder, 
+                  int L_aileron, int R_aileron, int L_flaps, int R_flaps, int motor);
 };

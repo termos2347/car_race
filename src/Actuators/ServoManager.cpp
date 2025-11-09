@@ -2,14 +2,14 @@
 #include <Arduino.h>
 
 ServoManager::ServoManager()
-    : elevatorServo(HardwareConfig::ELEVATOR_PIN, ELEVATOR_MIN, ELEVATOR_MAX, ELEVATOR_NEUTRAL, "ELEVATOR"),
-      rudderServo(HardwareConfig::RUDDER_PIN, RUDDER_MIN, RUDDER_MAX, RUDDER_NEUTRAL, "RUDDER"),
-      leftAileronServo(HardwareConfig::LEFT_AILERON_PIN, AILERON_MIN, AILERON_MAX, AILERON_NEUTRAL, "LEFT_AILERON"),
-      rightAileronServo(HardwareConfig::RIGHT_AILERON_PIN, AILERON_MIN, AILERON_MAX, AILERON_NEUTRAL, "RIGHT_AILERON"),
-      flapsServo(HardwareConfig::FLAPS_PIN, FLAPS_MIN, FLAPS_MAX, FLAPS_NEUTRAL, "FLAPS"),
-      aux1Servo(HardwareConfig::AUX1_PIN, AUX1_MIN, AUX1_MAX, AUX1_NEUTRAL, "AUX1"),
-      aux2Servo(HardwareConfig::AUX2_PIN, AUX2_MIN, AUX2_MAX, AUX2_NEUTRAL, "AUX2"),
-      aux3Servo(HardwareConfig::AUX3_PIN, AUX3_MIN, AUX3_MAX, AUX3_NEUTRAL, "AUX3"),
+    : L_elevatorServo(HardwareConfig::L_ELEVATOR_PIN, L_ELEVATOR_MIN, L_ELEVATOR_MAX, L_ELEVATOR_NEUTRAL, "L_ELEVATOR"),
+      R_elevatorServo(HardwareConfig::R_ELEVATOR_PIN, R_ELEVATOR_MIN, R_ELEVATOR_MAX, R_ELEVATOR_NEUTRAL, "R_ELEVATOR"),
+      L_rudderServo(HardwareConfig::L_RUDDER_PIN, L_RUDDER_MIN, L_RUDDER_MAX, L_RUDDER_NEUTRAL, "L_RUDDER"),
+      R_rudderServo(HardwareConfig::R_RUDDER_PIN, R_RUDDER_MIN, R_RUDDER_MAX, R_RUDDER_NEUTRAL, "R_RUDDER"),
+      L_aileronServo(HardwareConfig::L_AILERON_PIN, L_AILERON_MIN, L_AILERON_MAX, L_AILERON_NEUTRAL, "L_LEFT_AILERON"),
+      R_aileronServo(HardwareConfig::R_AILERON_PIN, R_AILERON_MIN, R_AILERON_MAX, R_AILERON_NEUTRAL, "R_RIGHT_AILERON"),
+      L_flapServo(HardwareConfig::L_FLAPS_PIN, L_FLAPS_MIN, L_FLAPS_MAX, L_FLAPS_NEUTRAL, "L_FLAPS"),
+      R_flapServo(HardwareConfig::R_FLAPS_PIN, R_FLAPS_MIN, R_FLAPS_MAX, R_FLAPS_NEUTRAL, "R_FLAPS"),
       motorServo(HardwareConfig::MOTOR_PIN, MOTOR_MIN, MOTOR_MAX, MOTOR_NEUTRAL, "MOTOR")
 {
 }
@@ -27,22 +27,15 @@ void ServoManager::begin() {
 
     // Инициализация сервоприводов
     Serial.println("🎯 Initializing servos...");
-    elevatorServo.begin();
-    rudderServo.begin();
-    leftAileronServo.begin();
-    rightAileronServo.begin();
-    flapsServo.begin();
+    L_elevatorServo.begin();
+    R_elevatorServo.begin();
+    L_rudderServo.begin();
+    R_rudderServo.begin();
+    L_aileronServo.begin();
+    R_aileronServo.begin();
+    L_flapServo.begin();
+    R_flapServo.begin();
     motorServo.begin();
-    
-    #if TEST_AUX1
-        aux1Servo.begin();
-    #endif
-    #if TEST_AUX2
-        aux2Servo.begin();
-    #endif  
-    #if TEST_AUX3
-        aux3Servo.begin();
-    #endif
     
     // Запуск тестов в зависимости от настроек
     #if SAFE_TEST_MODE
@@ -54,25 +47,18 @@ void ServoManager::begin() {
     Serial.println("✅ ALL Servos INIT OK");
 }
 
-void ServoManager::moveAllServos(int elevator, int rudder, int leftAileron, int rightAileron, 
-                                int flaps, int motor, int aux1, int aux2, int aux3) {
+void ServoManager::moveAllServos(int L_elevator, int R_elevator, int L_rudder, int R_rudder, int L_aileron, int R_aileron, 
+                                int L_flaps, int R_flaps, int motor) {
     // ВСЕ сервоприводы двигаются ОДНОВРЕМЕННО
-    elevatorServo.write(elevator);
-    rudderServo.write(rudder);
-    leftAileronServo.write(leftAileron);
-    rightAileronServo.write(rightAileron);
-    flapsServo.write(flaps);
+    L_elevatorServo.write(L_elevator);
+    R_elevatorServo.write(R_elevator);
+    L_rudderServo.write(L_rudder);
+    R_rudderServo.write(R_rudder);
+    L_aileronServo.write(L_aileron);
+    R_aileronServo.write(R_aileron);
+    L_flapServo.write(L_flaps);
+    R_flapServo.write(R_flaps);
     motorServo.write(motor);
-    
-    #if TEST_AUX1
-        aux1Servo.write(aux1);
-    #endif
-    #if TEST_AUX2
-        aux2Servo.write(aux2);
-    #endif
-    #if TEST_AUX3
-        aux3Servo.write(aux3);
-    #endif
 }
 
 void ServoManager::simultaneousTestSequence() {
@@ -82,44 +68,43 @@ void ServoManager::simultaneousTestSequence() {
     
     // ТЕСТ 1: Все в нейтральное положение ОДНОВРЕМЕННО
     Serial.println("🎯 TEST 1: ALL SERVOS → NEUTRAL");
-    moveAllServos(ELEVATOR_NEUTRAL, RUDDER_NEUTRAL, AILERON_NEUTRAL, AILERON_NEUTRAL,
-                  FLAPS_NEUTRAL, MOTOR_NEUTRAL, AUX1_NEUTRAL, AUX2_NEUTRAL, AUX3_NEUTRAL);
+    moveAllServos(L_ELEVATOR_NEUTRAL, R_ELEVATOR_NEUTRAL, L_RUDDER_NEUTRAL, R_RUDDER_NEUTRAL,
+                  L_AILERON_NEUTRAL, R_AILERON_NEUTRAL,
+                  L_FLAPS_NEUTRAL, R_FLAPS_NEUTRAL, 
+                  MOTOR_NEUTRAL);
     delay(TEST_DELAY_LONG);
     
     // ТЕСТ 2: Все в минимальное положение ОДНОВРЕМЕННО
     Serial.println("🎯 TEST 2: ALL SERVOS → MINIMUM");
-    moveAllServos(ELEVATOR_MIN, RUDDER_MIN, AILERON_MIN, AILERON_MIN,
-                  FLAPS_MIN, MOTOR_MIN, AUX1_MIN, AUX2_MIN, AUX3_MIN);
+    moveAllServos(L_ELEVATOR_MIN, R_ELEVATOR_MIN, 
+                  L_RUDDER_MIN, R_RUDDER_MIN,
+                  L_AILERON_MIN, R_AILERON_MIN,
+                  L_FLAPS_MIN, R_FLAPS_MIN, 
+                  MOTOR_MIN);
     delay(TEST_DELAY_LONG);
     
     // ТЕСТ 3: Все в максимальное положение ОДНОВРЕМЕННО
     Serial.println("🎯 TEST 3: ALL SERVOS → MAXIMUM");
-    moveAllServos(ELEVATOR_MAX, RUDDER_MAX, AILERON_MAX, AILERON_MAX,
-                  FLAPS_MAX, MOTOR_MAX, AUX1_MAX, AUX2_MAX, AUX3_MAX);
+    moveAllServos(L_ELEVATOR_MAX, R_ELEVATOR_MAX, 
+                  L_RUDDER_MAX, R_RUDDER_MAX,
+                  L_AILERON_MAX, R_AILERON_MAX,
+                  L_FLAPS_MAX, R_FLAPS_MAX, 
+                  MOTOR_MAX);
     delay(TEST_DELAY_LONG);
     
-    // ТЕСТ 4: Элероны в противофазе + другие нейтральные
-    Serial.println("🎯 TEST 4: AILERONS ANTI-PHASE + OTHERS NEUTRAL");
-    moveAllServos(ELEVATOR_NEUTRAL, RUDDER_NEUTRAL, AILERON_MAX, AILERON_MIN,
-                  FLAPS_NEUTRAL, MOTOR_NEUTRAL, AUX1_NEUTRAL, AUX2_NEUTRAL, AUX3_NEUTRAL);
-    delay(TEST_DELAY_SHORT);
-    
-    // ТЕСТ 5: Противоположная фаза элеронов
-    Serial.println("🎯 TEST 5: AILERONS REVERSE ANTI-PHASE");
-    moveAllServos(ELEVATOR_NEUTRAL, RUDDER_NEUTRAL, AILERON_MIN, AILERON_MAX,
-                  FLAPS_NEUTRAL, MOTOR_NEUTRAL, AUX1_NEUTRAL, AUX2_NEUTRAL, AUX3_NEUTRAL);
-    delay(TEST_DELAY_SHORT);
-    
-    // ТЕСТ 6: Закрылки выпущены + мотор на полную
-    Serial.println("🎯 TEST 6: FLAPS DEPLOYED + MOTOR FULL");
-    moveAllServos(ELEVATOR_NEUTRAL, RUDDER_NEUTRAL, AILERON_NEUTRAL, AILERON_NEUTRAL,
-                  FLAPS_MAX, MOTOR_MAX, AUX1_NEUTRAL, AUX2_NEUTRAL, AUX3_NEUTRAL);
-    delay(TEST_DELAY_SHORT);
+    // ТЕСТ: Элероны в противофазе + другие нейтральные
+    // Serial.println("🎯 TEST 4: AILERONS ANTI-PHASE + OTHERS NEUTRAL");
+    // moveAllServos(ELEVATOR_NEUTRAL, RUDDER_NEUTRAL, AILERON_MAX, AILERON_MIN,
+    //              FLAPS_NEUTRAL, MOTOR_NEUTRAL, AUX1_NEUTRAL, AUX2_NEUTRAL, AUX3_NEUTRAL);
+    // delay(TEST_DELAY_SHORT);
     
     // ФИНАЛ: Все обратно в нейтральное
     Serial.println("🎯 FINAL: ALL SERVOS → NEUTRAL");
-    moveAllServos(ELEVATOR_NEUTRAL, RUDDER_NEUTRAL, AILERON_NEUTRAL, AILERON_NEUTRAL,
-                  FLAPS_NEUTRAL, MOTOR_NEUTRAL, AUX1_NEUTRAL, AUX2_NEUTRAL, AUX3_NEUTRAL);
+    moveAllServos(L_ELEVATOR_NEUTRAL, R_ELEVATOR_NEUTRAL, 
+                  L_RUDDER_NEUTRAL, R_RUDDER_NEUTRAL,
+                  L_AILERON_NEUTRAL, R_AILERON_NEUTRAL,
+                  L_FLAPS_NEUTRAL, R_FLAPS_NEUTRAL, 
+                  MOTOR_NEUTRAL);
     delay(TEST_DELAY_SHORT);
     
     Serial.println("✅ SIMULTANEOUS Tests COMPLETE - All servos moved together!");
@@ -133,51 +118,41 @@ void ServoManager::safeTestSequence() {
     
     #if TEST_ELEVATOR
         Serial.println("🎯 Testing ELEVATOR");
-        elevatorServo.testSequence();
+        L_elevatorServo.testSequence();
         delay(TEST_DELAY_LONG);
+        R_elevatorServo.testSequence();
+        delay(TEST_DELAY_LONG);
+        
     #endif
     
     #if TEST_RUDDER
         Serial.println("🎯 Testing RUDDER");
-        rudderServo.testSequence();
+        L_rudderServo.testSequence();
         delay(TEST_DELAY_LONG);
+        R_rudderServo.testSequence();
+        delay(TEST_DELAY_LONG);
+        
     #endif
     
     #if TEST_AILERONS
         Serial.println("🎯 Testing AILERONS");
-        leftAileronServo.testSequence();
+        L_aileronServo.testSequence();
         delay(TEST_DELAY_SHORT);
-        rightAileronServo.testSequence();
+        R_aileronServo.testSequence();
         delay(TEST_DELAY_LONG);
     #endif
     
     #if TEST_FLAPS
         Serial.println("🎯 Testing FLAPS");
-        flapsServo.testSequence();
+        L_flapServo.testSequence();
+        delay(TEST_DELAY_LONG);
+        R_flapServo.testSequence();
         delay(TEST_DELAY_LONG);
     #endif
     
     #if TEST_MOTOR
         Serial.println("🎯 Testing MOTOR");
         motorServo.testSequence();
-        delay(TEST_DELAY_LONG);
-    #endif
-    
-    #if TEST_AUX1
-        Serial.println("🎯 Testing AUX1");
-        aux1Servo.testSequence();
-        delay(TEST_DELAY_LONG);
-    #endif
-    
-    #if TEST_AUX2
-        Serial.println("🎯 Testing AUX2");
-        aux2Servo.testSequence();
-        delay(TEST_DELAY_LONG);
-    #endif
-    
-    #if TEST_AUX3
-        Serial.println("🎯 Testing AUX3");
-        aux3Servo.testSequence();
         delay(TEST_DELAY_LONG);
     #endif
     
@@ -196,91 +171,53 @@ void ServoManager::applyDeadZone(int16_t& axisValue, int deadZone) {
 }
 
 void ServoManager::updateAilerons(int rollValue) {
-    int leftAileronAngle = map(rollValue, -512, 512, AILERON_MAX, AILERON_MIN);
-    int rightAileronAngle = map(rollValue, -512, 512, AILERON_MIN, AILERON_MAX);
+    int leftAileronAngle = map(rollValue, -512, 512, L_AILERON_MAX, L_AILERON_MIN);
+    int rightAileronAngle = map(rollValue, -512, 512, R_AILERON_MIN, R_AILERON_MAX);
     
-    leftAileronServo.write(leftAileronAngle);
-    rightAileronServo.write(rightAileronAngle);
+    L_aileronServo.write(leftAileronAngle);
+    R_aileronServo.write(rightAileronAngle);
 }
 
 void ServoManager::updateAileronsSmooth(int rollValue) {
-    int leftAileronAngle = map(rollValue, -512, 512, AILERON_MAX, AILERON_MIN);
-    int rightAileronAngle = map(rollValue, -512, 512, AILERON_MIN, AILERON_MAX);
+    int L_aileronAngle = map(rollValue, -512, 512, L_AILERON_MAX, L_AILERON_MIN);
+    int R_aileronAngle = map(rollValue, -512, 512, R_AILERON_MIN, R_AILERON_MAX);
     
-    leftAileronServo.writeSmooth(leftAileronAngle, SERVO_SPEED_FAST);
-    rightAileronServo.writeSmooth(rightAileronAngle, SERVO_SPEED_FAST);
+    L_aileronServo.writeSmooth(L_aileronAngle, SERVO_SPEED_FAST);
+    R_aileronServo.writeSmooth(R_aileronAngle, SERVO_SPEED_FAST);
 }
 
 void ServoManager::updateFlaps(int flapsValue) {
-    int flapsAngle;
+    int L_flapsAngle, R_flapsAngle;
     if (flapsValue < -300) {
-        flapsAngle = FLAPS_MIN;
+        L_flapsAngle = L_FLAPS_MIN;
+        R_flapsAngle = R_FLAPS_MIN;
     } else if (flapsValue > 300) {
-        flapsAngle = FLAPS_MAX;
+        L_flapsAngle = L_FLAPS_MAX;
+        R_flapsAngle = R_FLAPS_MAX;
     } else {
-        flapsAngle = FLAPS_NEUTRAL;
+        L_flapsAngle = L_FLAPS_NEUTRAL;
+        R_flapsAngle = R_FLAPS_NEUTRAL;
     }
     
-    flapsServo.write(flapsAngle);
+    L_flapServo.write(L_flapsAngle);
+    R_flapServo.write(R_flapsAngle);
 }
 
 void ServoManager::updateFlapsSmooth(int flapsValue) {
-    int flapsAngle;
+    int L_flapsAngle, R_flapsAngle;
     if (flapsValue < -300) {
-        flapsAngle = FLAPS_MIN;
+        L_flapsAngle = L_FLAPS_MIN;
+        R_flapsAngle = R_FLAPS_MIN;
     } else if (flapsValue > 300) {
-        flapsAngle = FLAPS_MAX;
+        L_flapsAngle = L_FLAPS_MAX;
+        R_flapsAngle = R_FLAPS_MAX;
     } else {
-        flapsAngle = FLAPS_NEUTRAL;
+        L_flapsAngle = L_FLAPS_NEUTRAL;
+        R_flapsAngle = R_FLAPS_NEUTRAL;
     }
     
-    flapsServo.writeSmooth(flapsAngle, SERVO_SPEED_SLOW);
-}
-
-void ServoManager::updateAuxServos(const ControlData& data) {
-    #if TEST_AUX1
-        if (data.button1) {
-            aux1Servo.write(AUX1_MAX);
-        } else {
-            aux1Servo.write(AUX1_MIN);
-        }
-    #endif
-    
-    #if TEST_AUX2
-        if (data.button2) {
-            aux2Servo.write(AUX2_MAX);
-        } else {
-            aux2Servo.write(AUX2_MIN);
-        }
-    #endif
-    
-    #if TEST_AUX3
-        int aux3Angle = map(data.xAxis2, -512, 512, AUX3_MIN, AUX3_MAX);
-        aux3Servo.write(aux3Angle);
-    #endif
-}
-
-void ServoManager::updateAuxServosSmooth(const ControlData& data) {
-    #if TEST_AUX1
-        if (data.button1) {
-            aux1Servo.writeSmooth(AUX1_MAX, SERVO_SPEED_SLOW);
-        } else {
-            aux1Servo.writeSmooth(AUX1_MIN, SERVO_SPEED_SLOW);
-        }
-    #endif
-    
-    #if TEST_AUX2
-        if (data.button2) {
-            aux2Servo.writeSmooth(AUX2_MAX, SERVO_SPEED_SLOW);
-        } else {
-            aux2Servo.writeSmooth(AUX2_MIN, SERVO_SPEED_SLOW);
-        }
-    #endif
-    
-    #if TEST_AUX3
-        int aux3Angle = map(data.xAxis2, -512, 512, AUX3_MIN, AUX3_MAX);
-        aux3Servo.writeSmooth(aux3Angle, SERVO_SPEED_MEDIUM);
-    #endif
+    L_flapServo.writeSmooth(L_flapsAngle, SERVO_SPEED_SLOW);
+    R_flapServo.writeSmooth(R_flapsAngle, SERVO_SPEED_SLOW);
 }
 
 void ServoManager::update(const ControlData& data) {
@@ -296,40 +233,48 @@ void ServoManager::update(const ControlData& data) {
     applyDeadZone(processedData.yAxis2, DEADZONE_YAXIS2);
     
     // Основные органы управления
-    int elevatorAngle = map(processedData.yAxis1, -512, 512, ELEVATOR_MIN, ELEVATOR_MAX);
-    int rudderAngle = map(processedData.xAxis1, -512, 512, RUDDER_MIN, RUDDER_MAX);
+    int L_elevatorAngle = map(processedData.yAxis1, -512, 512, L_ELEVATOR_MIN, L_ELEVATOR_MAX);
+    int R_elevatorAngle = map(processedData.yAxis1, -512, 512, R_ELEVATOR_MIN, R_ELEVATOR_MAX);
+    int L_rudderAngle = map(processedData.xAxis1, -512, 512, L_RUDDER_MIN, L_RUDDER_MAX);
+    int R_rudderAngle = map(processedData.xAxis1, -512, 512, R_RUDDER_MIN, R_RUDDER_MAX);
     int motorSpeed = map(processedData.yAxis2, -512, 512, MOTOR_MIN, MOTOR_MAX);
     
     #if SMOOTH_SERVO_MOVEMENT
-        elevatorServo.writeSmooth(elevatorAngle, SERVO_SPEED_MEDIUM);
-        rudderServo.writeSmooth(rudderAngle, SERVO_SPEED_MEDIUM);
+        L_elevatorServo.writeSmooth(L_elevatorAngle, SERVO_SPEED_MEDIUM);
+        R_elevatorServo.writeSmooth(R_elevatorAngle, SERVO_SPEED_MEDIUM);
+        L_rudderServo.writeSmooth(L_rudderAngle, SERVO_SPEED_MEDIUM);
+        R_rudderServo.writeSmooth(R_rudderAngle, SERVO_SPEED_MEDIUM);
         motorServo.write(motorSpeed); // Мотору не нужна плавность
         updateAileronsSmooth(processedData.xAxis2);
         updateFlapsSmooth(processedData.yAxis2);
-        updateAuxServosSmooth(processedData);
     #else
-        elevatorServo.write(elevatorAngle);
-        rudderServo.write(rudderAngle);
+        L_elevatorServo.write(L_elevatorAngle);
+        R_elevatorServo.write(R_elevatorAngle);
+        L_rudderServo.write(L_rudderAngle);
+        R_rudderServo.write(R_rudderAngle);
         motorServo.write(motorSpeed);
         updateAilerons(processedData.xAxis2);
         updateFlaps(processedData.yAxis2);
-        updateAuxServos(processedData);
     #endif
     
     // Вывод отладочной информации
     static unsigned long lastPrint = 0;
     if (millis() - lastPrint > 500) {
-        int leftAileronAngle = map(processedData.xAxis2, -512, 512, AILERON_MAX, AILERON_MIN);
-        int rightAileronAngle = map(processedData.xAxis2, -512, 512, AILERON_MIN, AILERON_MAX);
+        int L_aileronAngle = map(processedData.xAxis2, -512, 512, L_AILERON_MAX, L_AILERON_MIN);
+        int R_aileronAngle = map(processedData.xAxis2, -512, 512, R_AILERON_MIN, R_AILERON_MAX);
         
-        Serial.print("🎮 Elev:");
-        Serial.print(elevatorAngle);
-        Serial.print("° Rud:");
-        Serial.print(rudderAngle);
+        Serial.print("🎮 Elev L:");
+        Serial.print(L_elevatorAngle);
+        Serial.print("/R");
+        Serial.print(R_elevatorAngle);
+        Serial.print("° Rud L:");
+        Serial.print(L_rudderAngle);
+        Serial.print("/R");
+        Serial.print(L_rudderAngle);
         Serial.print("° Ail L:");
-        Serial.print(leftAileronAngle);
+        Serial.print(L_aileronAngle);
         Serial.print("°/R:");
-        Serial.print(rightAileronAngle);
+        Serial.print(R_aileronAngle);
         Serial.print("° Flaps:");
         
         // Определяем статус закрылков
