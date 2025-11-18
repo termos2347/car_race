@@ -12,6 +12,8 @@ ServoManager::ServoManager()
       R_flapServo(HardwareConfig::R_FLAPS_PIN, R_FLAPS_MIN, R_FLAPS_MAX, R_FLAPS_NEUTRAL, "R_FLAPS"),
       motorServo(HardwareConfig::MOTOR_PIN, MOTOR_MIN, MOTOR_MAX, MOTOR_NEUTRAL, "MOTOR")
 {
+    isMotorArmed = false;
+    firstMotorUpdate = true;
 }
 
 void ServoManager::begin() {
@@ -37,6 +39,9 @@ void ServoManager::begin() {
     R_flapServo.begin();
     motorServo.begin();
     
+    // Безопасный запуск двигателя
+    safeMotorStart();
+    
     // Запуск тестов в зависимости от настроек
     #if SAFE_TEST_MODE
         safeTestSequence();
@@ -45,6 +50,27 @@ void ServoManager::begin() {
     #endif
     
     Serial.println("✅ ALL Servos INIT OK");
+}
+
+void ServoManager::safeMotorStart() {
+    Serial.println("🔧 Motor Safe Start Sequence");
+    
+    // 1. Установить минимальный сигнал для калибровки ESC
+    motorServo.write(MOTOR_MIN);
+    delay(3000);
+    
+    // 2. Установить максимальный сигнал для калибровки ESC
+    motorServo.write(MOTOR_MAX);
+    delay(3000);
+    
+    // 3. Вернуть в нейтраль (взвести)
+    motorServo.write(MOTOR_NEUTRAL);
+    delay(2000);
+    
+    isMotorArmed = true;
+    firstMotorUpdate = true;
+    
+    Serial.println("✅ Motor ARMED and READY");
 }
 
 void ServoManager::moveAllServos(int L_elevator, int R_elevator, int L_rudder, int R_rudder, int L_aileron, int R_aileron, 
@@ -58,12 +84,21 @@ void ServoManager::moveAllServos(int L_elevator, int R_elevator, int L_rudder, i
     R_aileronServo.write(R_aileron);
     L_flapServo.write(L_flaps);
     R_flapServo.write(R_flaps);
-    motorServo.write(motor);
+    
+    // Двигатель - только если взведен и в безопасном режиме
+    if (isMotorArmed) {
+        // Ограничиваем двигатель для безопасности тестов
+        int safeMotor = constrain(motor, MOTOR_NEUTRAL, MOTOR_NEUTRAL + 30); // Макс 30 единиц для тестов
+        motorServo.write(safeMotor);
+    } else {
+        motorServo.write(MOTOR_NEUTRAL);
+    }
 }
 
 void ServoManager::simultaneousTestSequence() {
     Serial.println("🧪 SIMULTANEOUS Servo Test Sequence");
     Serial.println("🎯 ALL servos moving TOGETHER at the same time!");
+    Serial.println("⚠️  MOTOR LIMITED TO SAFE RANGE FOR TESTING");
     isTesting = true;
     
     // ТЕСТ 1: Все в нейтральное положение ОДНОВРЕМЕННО
@@ -80,7 +115,7 @@ void ServoManager::simultaneousTestSequence() {
                   L_RUDDER_MIN, R_RUDDER_MIN,
                   L_AILERON_MIN, R_AILERON_MIN,
                   L_FLAPS_MIN, R_FLAPS_MIN, 
-                  MOTOR_MIN);
+                  MOTOR_NEUTRAL); // Двигатель остается в нейтрали
     delay(TEST_DELAY_LONG);
     
     // ТЕСТ 3: Все в максимальное положение ОДНОВРЕМЕННО
@@ -89,14 +124,26 @@ void ServoManager::simultaneousTestSequence() {
                   L_RUDDER_MAX, R_RUDDER_MAX,
                   L_AILERON_MAX, R_AILERON_MAX,
                   L_FLAPS_MAX, R_FLAPS_MAX, 
-                  MOTOR_MAX);
+                  MOTOR_NEUTRAL); // Двигатель остается в нейтрали
     delay(TEST_DELAY_LONG);
     
-    // ТЕСТ: Элероны в противофазе + другие нейтральные
-    // Serial.println("🎯 TEST 4: AILERONS ANTI-PHASE + OTHERS NEUTRAL");
-    // moveAllServos(ELEVATOR_NEUTRAL, RUDDER_NEUTRAL, AILERON_MAX, AILERON_MIN,
-    //              FLAPS_NEUTRAL, MOTOR_NEUTRAL, AUX1_NEUTRAL, AUX2_NEUTRAL, AUX3_NEUTRAL);
-    // delay(TEST_DELAY_SHORT);
+    // ТЕСТ 4: Элероны в противофазе
+    Serial.println("🎯 TEST 4: AILERONS ANTI-PHASE");
+    moveAllServos(L_ELEVATOR_NEUTRAL, R_ELEVATOR_NEUTRAL,
+                  L_RUDDER_NEUTRAL, R_RUDDER_NEUTRAL,
+                  L_AILERON_MAX, R_AILERON_MIN,
+                  L_FLAPS_NEUTRAL, R_FLAPS_NEUTRAL,
+                  MOTOR_NEUTRAL);
+    delay(TEST_DELAY_SHORT);
+    
+    // ТЕСТ 5: Руль направления + закрылки
+    Serial.println("🎯 TEST 5: RUDDER + FLAPS");
+    moveAllServos(L_ELEVATOR_NEUTRAL, R_ELEVATOR_NEUTRAL,
+                  L_RUDDER_MAX, R_RUDDER_MAX,
+                  L_AILERON_NEUTRAL, R_AILERON_NEUTRAL,
+                  L_FLAPS_MAX, R_FLAPS_MAX,
+                  MOTOR_NEUTRAL);
+    delay(TEST_DELAY_SHORT);
     
     // ФИНАЛ: Все обратно в нейтральное
     Serial.println("🎯 FINAL: ALL SERVOS → NEUTRAL");
@@ -122,7 +169,6 @@ void ServoManager::safeTestSequence() {
         delay(TEST_DELAY_LONG);
         R_elevatorServo.testSequence();
         delay(TEST_DELAY_LONG);
-        
     #endif
     
     #if TEST_RUDDER
@@ -131,7 +177,6 @@ void ServoManager::safeTestSequence() {
         delay(TEST_DELAY_LONG);
         R_rudderServo.testSequence();
         delay(TEST_DELAY_LONG);
-        
     #endif
     
     #if TEST_AILERONS
@@ -151,9 +196,26 @@ void ServoManager::safeTestSequence() {
     #endif
     
     #if TEST_MOTOR
-        Serial.println("🎯 Testing MOTOR");
-        motorServo.testSequence();
-        delay(TEST_DELAY_LONG);
+        Serial.println("🎯 Testing MOTOR (Safe Mode)");
+        Serial.println("⚠️  Motor test - SAFE RANGE ONLY");
+        
+        // Безопасный тест двигателя - только минимальные значения
+        motorServo.write(MOTOR_NEUTRAL);
+        delay(1000);
+        
+        // Небольшое увеличение тяги для теста
+        motorServo.write(MOTOR_NEUTRAL + 10);
+        delay(1000);
+        
+        // Еще небольшое увеличение
+        motorServo.write(MOTOR_NEUTRAL + 20);
+        delay(1000);
+        
+        // Возврат в нейтраль
+        motorServo.write(MOTOR_NEUTRAL);
+        delay(1000);
+        
+        Serial.println("✅ Motor test completed safely");
     #endif
     
     Serial.println("✅ SAFE Tests COMPLETE");
@@ -188,13 +250,18 @@ void ServoManager::updateAileronsSmooth(int rollValue) {
 
 void ServoManager::updateFlaps(int flapsValue) {
     int L_flapsAngle, R_flapsAngle;
+    
+    // Управление закрылками через кнопки
     if (flapsValue < -300) {
+        // Закрылки убраны
         L_flapsAngle = L_FLAPS_MIN;
         R_flapsAngle = R_FLAPS_MIN;
     } else if (flapsValue > 300) {
+        // Закрылки выпущены
         L_flapsAngle = L_FLAPS_MAX;
         R_flapsAngle = R_FLAPS_MAX;
     } else {
+        // Нейтральное положение
         L_flapsAngle = L_FLAPS_NEUTRAL;
         R_flapsAngle = R_FLAPS_NEUTRAL;
     }
@@ -205,6 +272,8 @@ void ServoManager::updateFlaps(int flapsValue) {
 
 void ServoManager::updateFlapsSmooth(int flapsValue) {
     int L_flapsAngle, R_flapsAngle;
+    
+    // Управление закрылками через кнопки
     if (flapsValue < -300) {
         L_flapsAngle = L_FLAPS_MIN;
         R_flapsAngle = R_FLAPS_MIN;
@@ -237,24 +306,61 @@ void ServoManager::update(const ControlData& data) {
     int R_elevatorAngle = map(processedData.yAxis1, -512, 512, R_ELEVATOR_MIN, R_ELEVATOR_MAX);
     int L_rudderAngle = map(processedData.xAxis1, -512, 512, L_RUDDER_MIN, L_RUDDER_MAX);
     int R_rudderAngle = map(processedData.xAxis1, -512, 512, R_RUDDER_MIN, R_RUDDER_MAX);
+    
+    // ДВИГАТЕЛЬ: управление от yAxis2
     int motorSpeed = map(processedData.yAxis2, -512, 512, MOTOR_MIN, MOTOR_MAX);
     
+    // ЗАКРЫЛКИ: управление от кнопок (button1 = выпустить, button2 = убрать)
+    int flapsValue = 0;
+    if (processedData.button1) {
+        flapsValue = 512; // Закрылки вниз
+    } else if (processedData.button2) {
+        flapsValue = -512; // Закрылки вверх
+    }
+    
+    // Безопасность двигателя
+    if (firstMotorUpdate) {
+        // Первое обновление - гарантированно нулевая тяга
+        motorSpeed = MOTOR_NEUTRAL;
+        firstMotorUpdate = false;
+    }
+    
+    // Дополнительная мертвая зона для двигателя (центр джойстика = нейтраль)
+    if (abs(processedData.yAxis2) < 50) {
+        motorSpeed = MOTOR_NEUTRAL;
+    }
+    
+    // Применяем управление
     #if SMOOTH_SERVO_MOVEMENT
         L_elevatorServo.writeSmooth(L_elevatorAngle, SERVO_SPEED_MEDIUM);
         R_elevatorServo.writeSmooth(R_elevatorAngle, SERVO_SPEED_MEDIUM);
         L_rudderServo.writeSmooth(L_rudderAngle, SERVO_SPEED_MEDIUM);
         R_rudderServo.writeSmooth(R_rudderAngle, SERVO_SPEED_MEDIUM);
-        motorServo.write(motorSpeed); // Мотору не нужна плавность
+        
+        // Двигатель - без плавности для мгновенного отклика
+        if (isMotorArmed) {
+            motorServo.write(motorSpeed);
+        } else {
+            motorServo.write(MOTOR_NEUTRAL);
+        }
+        
         updateAileronsSmooth(processedData.xAxis2);
-        updateFlapsSmooth(processedData.yAxis2);
+        updateFlapsSmooth(flapsValue);
     #else
         L_elevatorServo.write(L_elevatorAngle);
         R_elevatorServo.write(R_elevatorAngle);
         L_rudderServo.write(L_rudderAngle);
         R_rudderServo.write(R_rudderAngle);
-        motorServo.write(motorSpeed);
+        
+        // Двигатель
+        if (isMotorArmed) {
+            motorServo.write(motorSpeed);
+        } else {
+            motorServo.write(MOTOR_NEUTRAL);
+        }
+        
         updateAilerons(processedData.xAxis2);
-        updateFlaps(processedData.yAxis2);
+        updateFlaps(flapsValue);
     #endif
     
     // Вывод отладочной информации
@@ -265,12 +371,12 @@ void ServoManager::update(const ControlData& data) {
         
         Serial.print("🎮 Elev L:");
         Serial.print(L_elevatorAngle);
-        Serial.print("/R");
+        Serial.print("/R:");
         Serial.print(R_elevatorAngle);
         Serial.print("° Rud L:");
         Serial.print(L_rudderAngle);
-        Serial.print("/R");
-        Serial.print(L_rudderAngle);
+        Serial.print("/R:");
+        Serial.print(R_rudderAngle);
         Serial.print("° Ail L:");
         Serial.print(L_aileronAngle);
         Serial.print("°/R:");
@@ -279,15 +385,21 @@ void ServoManager::update(const ControlData& data) {
         
         // Определяем статус закрылков
         const char* flapsStatus = "MID";
-        if (processedData.yAxis2 < -300) {
-            flapsStatus = "UP";
-        } else if (processedData.yAxis2 > 300) {
+        if (processedData.button1) {
             flapsStatus = "DOWN";
+        } else if (processedData.button2) {
+            flapsStatus = "UP";
         }
         Serial.print(flapsStatus);
         
         Serial.print(" Motor:");
         Serial.print(motorSpeed);
+        Serial.print("/180 (");
+        Serial.print((motorSpeed * 100) / 180);
+        Serial.print("%) Throttle:");
+        Serial.print(processedData.yAxis2);
+        Serial.print(" Armed:");
+        Serial.print(isMotorArmed ? "YES" : "NO");
         Serial.print(" B1:");
         Serial.print(processedData.button1 ? "ON" : "OFF");
         Serial.print(" B2:");

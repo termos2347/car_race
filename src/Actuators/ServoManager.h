@@ -68,6 +68,8 @@ private:
     ServoGroup motorServo;            // Двигатель
     
     bool isTesting = false;
+    bool isMotorArmed = false;        // ДОБАВЛЕНО: флаг взведения двигателя
+    bool firstMotorUpdate = true;     // ДОБАВЛЕНО: флаг первого обновления двигателя
     
     // Настройки углов сервоприводов
     // ELEVATOR
@@ -107,9 +109,10 @@ private:
     static const int R_FLAPS_NEUTRAL = 90;
 
     // MOTOR
-    static const int MOTOR_MIN = 0;
-    static const int MOTOR_MAX = 180;
-    static const int MOTOR_NEUTRAL = 0;
+    static const int MOTOR_MIN = 0;       // Полная остановка
+    static const int MOTOR_MAX = 180;     // Максимальная тяга  
+    static const int MOTOR_NEUTRAL = 0;   // Выключен по умолчанию
+    static const int MOTOR_ARM = 10;      // Минимальный сигнал для "взведения" ESC
     
     // Вспомогательные методы
     void updateAilerons(int rollValue);
@@ -117,6 +120,7 @@ private:
     void updateFlaps(int flapsValue);
     void updateFlapsSmooth(int flapsValue);
     void applyDeadZone(int16_t& axisValue, int deadZone);
+    void safeMotorStart();  // ДОБАВЛЕНО: объявление метода
     
     // Новый метод для одновременного движения
     void moveAllServos(int L_elevator, int R_elevator, int L_rudder, int R_rudder, 
