@@ -121,6 +121,7 @@ private:
     void updateFlapsSmooth(int flapsValue);
     void applyDeadZone(int16_t& axisValue, int deadZone);
     void safeMotorStart();  // ДОБАВЛЕНО: объявление метода
+    void testMotorSequence();  // Отдельный тест двигателя
     
     // Новый метод для одновременного движения
     void moveAllServos(int L_elevator, int R_elevator, int L_rudder, int R_rudder, 
