@@ -2,15 +2,16 @@
 #include <Arduino.h>
 
 ServoManager::ServoManager()
-    : L_elevatorServo(HardwareConfig::L_ELEVATOR_PIN, L_ELEVATOR_MIN, L_ELEVATOR_MAX, L_ELEVATOR_NEUTRAL, "L_ELEVATOR"),
-      R_elevatorServo(HardwareConfig::R_ELEVATOR_PIN, R_ELEVATOR_MIN, R_ELEVATOR_MAX, R_ELEVATOR_NEUTRAL, "R_ELEVATOR"),
-      L_rudderServo(HardwareConfig::L_RUDDER_PIN, L_RUDDER_MIN, L_RUDDER_MAX, L_RUDDER_NEUTRAL, "L_RUDDER"),
-      R_rudderServo(HardwareConfig::R_RUDDER_PIN, R_RUDDER_MIN, R_RUDDER_MAX, R_RUDDER_NEUTRAL, "R_RUDDER"),
-      L_aileronServo(HardwareConfig::L_AILERON_PIN, L_AILERON_MIN, L_AILERON_MAX, L_AILERON_NEUTRAL, "L_LEFT_AILERON"),
-      R_aileronServo(HardwareConfig::R_AILERON_PIN, R_AILERON_MIN, R_AILERON_MAX, R_AILERON_NEUTRAL, "R_RIGHT_AILERON"),
-      L_flapServo(HardwareConfig::L_FLAPS_PIN, L_FLAPS_MIN, L_FLAPS_MAX, L_FLAPS_NEUTRAL, "L_FLAPS"),
-      R_flapServo(HardwareConfig::R_FLAPS_PIN, R_FLAPS_MIN, R_FLAPS_MAX, R_FLAPS_NEUTRAL, "R_FLAPS"),
-      motorServo(HardwareConfig::MOTOR_PIN, MOTOR_MIN, MOTOR_MAX, MOTOR_NEUTRAL, "MOTOR")
+    : L_elevatorServo(HardwareConfig::L_ELEVATOR_PIN, L_ELEVATOR_MIN, L_ELEVATOR_MAX, L_ELEVATOR_NEUTRAL, "L_ELEVATOR", SERVO_MIN_PULSE, SERVO_MAX_PULSE),
+      R_elevatorServo(HardwareConfig::R_ELEVATOR_PIN, R_ELEVATOR_MIN, R_ELEVATOR_MAX, R_ELEVATOR_NEUTRAL, "R_ELEVATOR", SERVO_MIN_PULSE, SERVO_MAX_PULSE),
+      L_rudderServo(HardwareConfig::L_RUDDER_PIN, L_RUDDER_MIN, L_RUDDER_MAX, L_RUDDER_NEUTRAL, "L_RUDDER", SERVO_MIN_PULSE, SERVO_MAX_PULSE),
+      R_rudderServo(HardwareConfig::R_RUDDER_PIN, R_RUDDER_MIN, R_RUDDER_MAX, R_RUDDER_NEUTRAL, "R_RUDDER", SERVO_MIN_PULSE, SERVO_MAX_PULSE),
+      L_aileronServo(HardwareConfig::L_AILERON_PIN, L_AILERON_MIN, L_AILERON_MAX, L_AILERON_NEUTRAL, "L_LEFT_AILERON", SERVO_MIN_PULSE, SERVO_MAX_PULSE),
+      R_aileronServo(HardwareConfig::R_AILERON_PIN, R_AILERON_MIN, R_AILERON_MAX, R_AILERON_NEUTRAL, "R_RIGHT_AILERON", SERVO_MIN_PULSE, SERVO_MAX_PULSE),
+      L_flapServo(HardwareConfig::L_FLAPS_PIN, L_FLAPS_MIN, L_FLAPS_MAX, L_FLAPS_NEUTRAL, "L_FLAPS", SERVO_MIN_PULSE, SERVO_MAX_PULSE),
+      R_flapServo(HardwareConfig::R_FLAPS_PIN, R_FLAPS_MIN, R_FLAPS_MAX, R_FLAPS_NEUTRAL, "R_FLAPS", SERVO_MIN_PULSE, SERVO_MAX_PULSE),
+      // Теперь мотор такой же как все, но с другими импульсами
+      motorServo(HardwareConfig::MOTOR_PIN, MOTOR_MIN, MOTOR_MAX, MOTOR_NEUTRAL, "MOTOR", MOTOR_MIN_PULSE, MOTOR_MAX_PULSE)
 {
     isMotorArmed = false;
     firstMotorUpdate = true;
@@ -53,25 +54,26 @@ void ServoManager::begin() {
 }
 
 void ServoManager::safeMotorStart() {
-    Serial.println("🔧 Motor Safe Start Sequence - SIMPLE");
+    Serial.println("🔧 Motor Safe Start - FULL RANGE -512 to +512");
     
-    // Простая калибровка для реверса
-    motorServo.write(MOTOR_MAX);
-    Serial.println("   ⚡ MAX FORWARD");
+    // Калибровка с полным диапазоном
+    motorServo.write(180); // Макс вперед
+    Serial.println("   ⚡ MAX FORWARD (180)");
     delay(2000);
     
-    motorServo.write(MOTOR_MIN);
-    Serial.println("   🔄 MAX REVERSE");
+    motorServo.write(0); // Макс реверс
+    Serial.println("   🔄 MAX REVERSE (0)");
     delay(2000);
     
-    motorServo.write(MOTOR_NEUTRAL);
+    motorServo.write(90); // Нейтраль
     Serial.println("   ✅ NEUTRAL - READY");
     delay(2000);
     
     isMotorArmed = true;
     firstMotorUpdate = true;
     
-    Serial.println("✅ Motor ARMED - Simple control active");
+    Serial.println("✅ Motor ARMED - Full range mapping active");
+    Serial.println("📊 Mapping: -512→0, 0→90, +512→180");
 }
 
 void ServoManager::testMotorSequence() {
@@ -342,24 +344,45 @@ void ServoManager::update(const ControlData& data) {
         return;
     }
     
-    // 🔥 ПРИОРИТЕТНОЕ УПРАВЛЕНИЕ ДВИГАТЕЛЕМ (выполняется первым)
+    // 🔥 ПРИОРИТЕТНОЕ УПРАВЛЕНИЕ ДВИГАТЕЛЕМ
     if (isMotorArmed && !firstMotorUpdate) {
-        // 🔧 ИСПОЛЬЗУЕМ СЫРЫЕ ДАННЫЕ ДЖОЙСТИКА БЕЗ ПРЕОБРАЗОВАНИЯ
-        // Просто передаем значение оси джойстика напрямую в двигатель
-        int motorSpeed = data.yAxis2;
+        // 🔧 РАБОТАЕМ С ИСХОДНЫМИ ДАННЫМИ ДЖОЙСТИКА БЕЗ ПРЕОБРАЗОВАНИЯ
+        // Но адаптируем к диапазону Servo (0-180)
         
-        // 🔥 ОТПРАВЛЯЕМ КОМАНДУ ДВИГАТЕЛЮ СРАЗУ ЖЕ
+        // Простое масштабирование -512..512 → 0..180
+        int motorSpeed = map(data.yAxis2, -512, 512, 0, 180);
+        
+        // 🔥 ОТПРАВЛЯЕМ КОМАНДУ ДВИГАТЕЛЮ
         motorServo.write(motorSpeed);
+        
+        // ДИАГНОСТИКА В РЕАЛЬНОМ ВРЕМЕНИ
+        static unsigned long lastDebug = 0;
+        if (millis() - lastDebug > 100) {
+            Serial.print("⚡ RAW:");
+            Serial.print(data.yAxis2);
+            Serial.print(" → PWM:");
+            Serial.print(motorSpeed);
+            Serial.print(" | ");
+            
+            // Визуализация положения джойстика
+            if (data.yAxis2 < -400) Serial.println("MAX_REV ⬇️");
+            else if (data.yAxis2 > 400) Serial.println("MAX_FWD ⬆️"); 
+            else if (data.yAxis2 < -100) Serial.println("REV ↘️");
+            else if (data.yAxis2 > 100) Serial.println("FWD ↗️");
+            else Serial.println("STOP ◉");
+            
+            lastDebug = millis();
+        }
     }
     
     // Первое обновление - гарантированная нейтраль
     if (firstMotorUpdate) {
-        motorServo.write(MOTOR_NEUTRAL);
+        motorServo.write(90); // Нейтраль
         firstMotorUpdate = false;
         Serial.println("🔄 First motor update - SAFETY NEUTRAL");
     }
     
-    // ОБРАБОТКА СЕРВОПРИВОДОВ (выполняется после двигателя)
+    // ОБРАБОТКА СЕРВОПРИВОДОВ (остается без изменений)
     ControlData processedData = data;
     applyDeadZone(processedData.xAxis1, DEADZONE_XAXIS1);
     applyDeadZone(processedData.yAxis1, DEADZONE_YAXIS1);
@@ -395,24 +418,4 @@ void ServoManager::update(const ControlData& data) {
         updateAilerons(processedData.xAxis2);
         updateFlaps(flapsValue);
     #endif
-    
-    // Упрощенная диагностика
-    static unsigned long lastPrint = 0;
-    if (millis() - lastPrint > 300) {
-        const char* motorDirection = "STOP";
-        int currentMotorSpeed = data.yAxis2;
-        
-        if (currentMotorSpeed > 50) motorDirection = "FWD";
-        else if (currentMotorSpeed < -50) motorDirection = "REV";
-        
-        Serial.print("⚡ Motor RAW:");
-        Serial.print(currentMotorSpeed);
-        Serial.print(" ");
-        Serial.print(motorDirection);
-        Serial.print(" Throttle:");
-        Serial.print(data.yAxis2);
-        Serial.println();
-        
-        lastPrint = millis();
-    }
 }

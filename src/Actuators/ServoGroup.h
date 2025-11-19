@@ -4,7 +4,8 @@
 
 class ServoGroup {
 public:
-    ServoGroup(uint8_t pin, int minAngle, int maxAngle, int neutralAngle, const char* name);
+    ServoGroup(uint8_t pin, int minAngle, int maxAngle, int neutralAngle, const char* name, 
+               int minPulse, int maxPulse);
     void begin();
     void write(int angle);
     void writeSmooth(int angle, int movementTime = 200);
@@ -24,7 +25,6 @@ private:
     const char* name;
     bool isTesting = false;
     int currentAngle = 0;
-    
-    static const int SERVO_MIN_PULSE = 500;
-    static const int SERVO_MAX_PULSE = 2400;
+    int minPulse;
+    int maxPulse;
 };

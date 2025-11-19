@@ -113,6 +113,12 @@ private:
     static const int MOTOR_MAX = 180;     // Максимальная тяга  
     static const int MOTOR_NEUTRAL = 0;   // Выключен по умолчанию
     static const int MOTOR_ARM = 10;      // Минимальный сигнал для "взведения" ESC
+
+    // Настройки импульсов
+    static const int SERVO_MIN_PULSE = 500;
+    static const int SERVO_MAX_PULSE = 2400;
+    static const int MOTOR_MIN_PULSE = 1000;
+    static const int MOTOR_MAX_PULSE = 2000;
     
     // Вспомогательные методы
     void updateAilerons(int rollValue);

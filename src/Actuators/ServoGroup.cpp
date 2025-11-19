@@ -1,16 +1,23 @@
 #include "ServoGroup.h"
 #include <Arduino.h>
 
-ServoGroup::ServoGroup(uint8_t pin, int minAngle, int maxAngle, int neutralAngle, const char* name)
-    : pin(pin), minAngle(minAngle), maxAngle(maxAngle), neutralAngle(neutralAngle), name(name) {
+// Конструктор БЕЗ значений по умолчанию - импульсы обязательны
+ServoGroup::ServoGroup(uint8_t pin, int minAngle, int maxAngle, int neutralAngle, const char* name,
+                       int minPulse, int maxPulse)
+    : pin(pin), minAngle(minAngle), maxAngle(maxAngle), neutralAngle(neutralAngle), 
+      name(name), minPulse(minPulse), maxPulse(maxPulse) {
 }
 
 void ServoGroup::begin() {
     Serial.print("🚀 INIT ");
     Serial.print(name);
-    Serial.println(" Servo");
+    Serial.print(" Servo [Pulse: ");
+    Serial.print(minPulse);
+    Serial.print("-");
+    Serial.print(maxPulse);
+    Serial.println("μs]");
     
-    servo.attach(pin, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    servo.attach(pin, minPulse, maxPulse);
     servo.write(neutralAngle);
     currentAngle = neutralAngle;
     delay(500);
