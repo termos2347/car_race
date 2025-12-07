@@ -18,16 +18,13 @@ ServoManager::ServoManager()
 }
 
 void ServoManager::begin() {
-    Serial.println("🚀 START ServoManager");
-    Serial.println("📌 Power Safety Configuration:");
+    Serial.println("🚀 ServoManager - FLIGHT MODE");
+    Serial.println("📌 Configuration:");
     Serial.print("   - Smooth Movement: ");
     Serial.println(SMOOTH_SERVO_MOVEMENT ? "ENABLED" : "DISABLED");
-    Serial.print("   - Safe Test Mode: ");
-    Serial.println(SAFE_TEST_MODE ? "ENABLED" : "DISABLED");
-    Serial.println("   - Test Type: SIMULTANEOUS (All servos together)");
     
-    delay(3000);
-
+    delay(100);
+    
     // Инициализация сервоприводов
     Serial.println("🎯 Initializing servos...");
     L_elevatorServo.begin();
@@ -40,17 +37,40 @@ void ServoManager::begin() {
     R_flapServo.begin();
     motorServo.begin();
     
-    // Безопасный запуск двигателя
-    safeMotorStart();
+    // Для умного ESC - только нейтраль (без калибровки!)
+    Serial.println("🔧 Initializing Smart ESC...");
+    motorServo.write(90);  // Нейтральное положение (1500 мкс)
+    delay(500);           // Даем ESC время на инициализацию
     
-    // Запуск тестов в зависимости от настроек
-    #if SAFE_TEST_MODE
-        safeTestSequence();
-    #else
-        simultaneousTestSequence();
-    #endif
+    isMotorArmed = true;
+    firstMotorUpdate = true;
     
-    Serial.println("✅ ALL Servos INIT OK");
+    Serial.println("✅ Servos READY for flight");
+    Serial.println("📝 Send 't' via Serial to run manual tests");
+}
+
+// НОВЫЙ МЕТОД для ручного запуска тестов
+void ServoManager::runManualTests() {
+    Serial.println("🧪 MANUAL TEST SEQUENCE");
+    Serial.println("⚠️  WARNING: Ensure propeller is removed!");
+    Serial.println("Send 'y' to confirm or any key to cancel...");
+    
+    // Ждем подтверждения 5 секунд
+    unsigned long start = millis();
+    while (millis() - start < 5000) {
+        if (Serial.available()) {
+            char c = Serial.read();
+            if (c == 'y' || c == 'Y') {
+                Serial.println("✅ Starting full test sequence...");
+                simultaneousTestSequence();
+                return;
+            } else {
+                Serial.println("❌ Test cancelled");
+                return;
+            }
+        }
+    }
+    Serial.println("⏰ Timeout - test cancelled");
 }
 
 void ServoManager::safeMotorStart() {

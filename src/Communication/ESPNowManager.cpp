@@ -139,8 +139,10 @@ void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int 
     static int packetCount = 0;
     packetCount++;
     
-    if (millis() - lastStablePrint > 10000) {
-        Serial.printf("📡 ESP-NOW: %d пакетов/10сек\n", packetCount);
+    // Раз в 30 секунд вместо 10
+    if (millis() - lastStablePrint > 30000) {
+        Serial.printf("📡 ESP-NOW: %d packets/30sec | RSSI: %d\n", 
+                     packetCount, WiFi.RSSI());
         lastStablePrint = millis();
         packetCount = 0;
     }

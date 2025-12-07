@@ -28,12 +28,13 @@
 #define TEST_DELAY_LONG   3000
 
 // Включить/выключить тестирование отдельных сервоприводов
+/*
 #define TEST_ELEVATOR     true
 #define TEST_RUDDER       true  
 #define TEST_AILERONS     true
 #define TEST_FLAPS        true
 #define TEST_MOTOR        true
-
+*/
 
 // ============================================================================
 // НАСТРОЙКИ УПРАВЛЕНИЯ
@@ -50,9 +51,12 @@ public:
     ServoManager();
     void begin();
     void update(const ControlData& data);
+
     void testSequence();
     void safeTestSequence();
-    void simultaneousTestSequence();  // ИЗМЕНИЛ НАЗВАНИЕ
+    void simultaneousTestSequence();
+
+    void runManualTests(); // Новый метод для ручного запуска
     
 private:
     // Основные сервоприводы управления полетом
@@ -70,6 +74,7 @@ private:
     bool isTesting = false;
     bool isMotorArmed = false;        // ДОБАВЛЕНО: флаг взведения двигателя
     bool firstMotorUpdate = true;     // ДОБАВЛЕНО: флаг первого обновления двигателя
+    bool testsEnabled = false; // Флаг для ручного включения
     
     // Настройки углов сервоприводов
     // ELEVATOR
