@@ -9,6 +9,7 @@ public:
     void begin();
     void write(int angle);
     void writeSmooth(int angle, int movementTime = 200);
+    void writeMicroseconds(int us);
     void testSequence();
     void testToNeutral();
     void testToMin();

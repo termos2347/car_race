@@ -20,21 +20,9 @@
 // НАСТРОЙКИ ТЕСТИРОВАНИЯ  
 // ============================================================================
 
-// Режим тестирования (true - безопасное последовательное, false - синхронное)
-#define SAFE_TEST_MODE false
-
 // Задержки между тестами (миллисекунды)
 #define TEST_DELAY_SHORT  1000
 #define TEST_DELAY_LONG   3000
-
-// Включить/выключить тестирование отдельных сервоприводов
-/*
-#define TEST_ELEVATOR     true
-#define TEST_RUDDER       true  
-#define TEST_AILERONS     true
-#define TEST_FLAPS        true
-#define TEST_MOTOR        true
-*/
 
 // ============================================================================
 // НАСТРОЙКИ УПРАВЛЕНИЯ
@@ -57,24 +45,52 @@ public:
     void simultaneousTestSequence();
 
     void runManualTests(); // Новый метод для ручного запуска
+    void safeStartSequence();
+
+    // Методы для управления ESC
+    void calibrateESC();
+    void escTestSimple();
+    void writeMicroseconds(int us);  // ← ДОБАВЬТЕ ЭТУ СТРОЧКУ
+    void blheliArmingSequence();
+    
+    // Геттеры
+    bool isMotorArmed() const { return motorArmed; }
+    bool getIsTesting() const { return isTesting; }
+    
+    // Управление тестами
+    void enableTests() { testsEnabled = true; }
+    void disableTests() { testsEnabled = false; }
+    
+    // Экстренная остановка двигателя
+    void emergencyStop() { 
+    motorServo.writeMicroseconds(1000);  // ← Используем микросекунды
+    motorArmed = false; 
+    }
+    
+    // НОВЫЕ ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ ТЕСТИРОВАНИЯ
+    void testMotorDirect(); // Принудительный тест двигателя
+    void directMotorTest(int powerPercent);
     
 private:
     // Основные сервоприводы управления полетом
-    ServoGroup L_elevatorServo;       // Левый руль высоты
-    ServoGroup R_elevatorServo;       // Правый руль высоты
-    ServoGroup L_rudderServo;         // Левый руль направления
-    ServoGroup R_rudderServo;         // Правый руль направления
-
-    ServoGroup L_aileronServo;        // Левый элерon
-    ServoGroup R_aileronServo;        // Правый элерон
-    ServoGroup L_flapServo;           // Левый закрылок
-    ServoGroup R_flapServo;           // Правый закрылок
-    ServoGroup motorServo;            // Двигатель
+    ServoGroup L_elevatorServo;
+    ServoGroup R_elevatorServo;
+    ServoGroup L_rudderServo;
+    ServoGroup R_rudderServo;
+    ServoGroup L_aileronServo;
+    ServoGroup R_aileronServo;
+    ServoGroup L_flapServo;
+    ServoGroup R_flapServo;
+    ServoGroup motorServo;
     
     bool isTesting = false;
-    bool isMotorArmed = false;        // ДОБАВЛЕНО: флаг взведения двигателя
-    bool firstMotorUpdate = true;     // ДОБАВЛЕНО: флаг первого обновления двигателя
-    bool testsEnabled = false; // Флаг для ручного включения
+    bool motorArmed = false;
+    bool firstMotorUpdate = true;
+    bool testsEnabled = false;  // Флаг для включения тестов
+
+    bool blheliFirstRun = true;
+    unsigned long blheliActivationStart = 0;
+    int blheliActivationStep = 0;
     
     // Настройки углов сервоприводов
     // ELEVATOR
@@ -86,7 +102,7 @@ private:
     static const int R_ELEVATOR_MAX = 180;
     static const int R_ELEVATOR_NEUTRAL = 90;
     
-    //RUDDER
+    // RUDDER
     static const int L_RUDDER_MIN = 0;
     static const int L_RUDDER_MAX = 180;
     static const int L_RUDDER_NEUTRAL = 90;
@@ -114,10 +130,10 @@ private:
     static const int R_FLAPS_NEUTRAL = 90;
 
     // MOTOR
-    static const int MOTOR_MIN = 0;       // Полная остановка
-    static const int MOTOR_MAX = 180;     // Максимальная тяга  
-    static const int MOTOR_NEUTRAL = 0;   // Выключен по умолчанию
-    static const int MOTOR_ARM = 10;      // Минимальный сигнал для "взведения" ESC
+    static const int MOTOR_MIN = 0;
+    static const int MOTOR_MAX = 180;
+    static const int MOTOR_NEUTRAL = 0;
+    static const int MOTOR_TEST_MAX = 60;  // Максимальное значение для тестов (безопасно)
 
     // Настройки импульсов
     static const int SERVO_MIN_PULSE = 500;
@@ -131,10 +147,8 @@ private:
     void updateFlaps(int flapsValue);
     void updateFlapsSmooth(int flapsValue);
     void applyDeadZone(int16_t& axisValue, int deadZone);
-    void safeMotorStart();  // ДОБАВЛЕНО: объявление метода
-    void testMotorSequence();  // Отдельный тест двигателя
-    
-    // Новый метод для одновременного движения
-    void moveAllServos(int L_elevator, int R_elevator, int L_rudder, int R_rudder, 
-                  int L_aileron, int R_aileron, int L_flaps, int R_flaps, int motor);
+    void safeMotorStart();
+    void testMotorSequence();
+    void moveAllServos(int L_elevator, int R_elevator, int L_rudder, int R_rudder,
+                       int L_aileron, int R_aileron, int L_flaps, int R_flaps, int motor);
 };
