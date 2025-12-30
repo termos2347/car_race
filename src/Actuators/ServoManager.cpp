@@ -804,7 +804,7 @@ void ServoManager::update(const ControlData& data) {
     
     // Руль высоты
     int L_elevatorAngle = map(processedData.yAxis1, -512, 512, L_ELEVATOR_MIN, L_ELEVATOR_MAX);
-    int R_elevatorAngle = map(processedData.yAxis1, -512, 512, R_ELEVATOR_MIN, R_ELEVATOR_MAX);
+    int R_elevatorAngle = map(processedData.yAxis1, -512, 512, R_ELEVATOR_MAX, R_ELEVATOR_MIN);
     
     // Руль направления
     int L_rudderAngle = map(processedData.xAxis1, -512, 512, L_RUDDER_MIN, L_RUDDER_MAX);
